@@ -1,0 +1,10 @@
+# зависимости и сборка
+node_modules/
+dist/
+coverage/
+*.local
+
+# служебные файлы инструментов и редакторов
+tools/.cache/
+.DS_Store
+*.log
