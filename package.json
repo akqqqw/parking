@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "«Парковочный переполох» (Parking Jam Puzzle) — 2D puzzle game: free the target car and drive it out of the parking lot.",
+  "description": "\u00ab\u041f\u0430\u0440\u043a\u043e\u0432\u043e\u0447\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u043f\u043e\u043b\u043e\u0445\u00bb (Parking Jam Puzzle) \u2014 2D puzzle game: free the target car and drive it out of the parking lot.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -11,7 +11,9 @@
     "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false --pretty",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:levels": "vitest run --config vitest.gen.config.ts"
+    "gen:levels": "vitest run --config vitest.gen.config.ts",
+    "assets:cars": "node tools/build-car-assets.mjs",
+    "preview:board": "node tools/preview-board.mjs"
   },
   "dependencies": {
     "idb": "^8.0.0",
@@ -28,6 +30,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "jsdom": "^30.1.3",
+    "pngjs": "^7.0.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"

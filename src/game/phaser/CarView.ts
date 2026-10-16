@@ -1,9 +1,10 @@
 /**
  * Визуальное представление одного автомобиля.
  *
- * Внутри — три слоя Graphics (подсветка, тень, кузов), поэтому машину можно
- * подсвечивать, перекрашивать и анимировать, не пересоздавая объекты.
- * Кузов всегда рисуется «носом вправо», вертикальные машины поворачиваются.
+ * Внутри — слои подсветки и тени (Graphics) и сам кузов: спрайт из
+ * `public/cars`, перекрашенный под набор цветов игрока, либо — если спрайта
+ * нет — векторная отрисовка (`drawCar.ts`). Кузов всегда «носом вправо»,
+ * вертикальные машины поворачиваются контейнером.
  */
 
 import Phaser from 'phaser';
@@ -11,6 +12,8 @@ import type { Car } from '../types';
 import { shade, type CarColorSkin } from '../theme/palettes';
 import { realColor } from './theme';
 import { drawCarInto, drawCarShadow } from './drawCar';
+import { paintedTextureKey } from './carPaint';
+import { spriteTextureKey } from './carSprites';
 import { carPixelPos, type Metrics } from './layout';
 
 export type CarFacing = 'right' | 'left' | 'up' | 'down';
@@ -20,6 +23,8 @@ export class CarView extends Phaser.GameObjects.Container {
   private readonly glowGfx: Phaser.GameObjects.Graphics;
   private readonly shadowGfx: Phaser.GameObjects.Graphics;
   private readonly bodyGfx: Phaser.GameObjects.Graphics;
+  private sprite?: Phaser.GameObjects.Image;
+  private readonly spriteKey: string | null;
   private metrics: Metrics;
   private facing: CarFacing;
   private skin: CarColorSkin;
@@ -32,12 +37,14 @@ export class CarView extends Phaser.GameObjects.Container {
     metrics: Metrics,
     facing: CarFacing,
     skin: CarColorSkin,
+    spriteKey: string | null = null,
   ) {
     super(scene, 0, 0);
     this.car = car;
     this.metrics = metrics;
     this.facing = facing;
     this.skin = skin;
+    this.spriteKey = spriteKey;
 
     this.glowGfx = scene.add.graphics();
     this.shadowGfx = scene.add.graphics();
@@ -58,13 +65,21 @@ export class CarView extends Phaser.GameObjects.Container {
     this.bodyGfx.clear();
     this.bodyGfx.setPosition(0, 0);
     this.bodyGfx.setRotation(0);
-    drawCarInto(this.bodyGfx, {
-      kind: this.car.kind,
-      color,
-      length: this.car.length,
-      cell,
-      target: this.car.target,
-    });
+    const painted = this.resolveSpriteTexture(color);
+    if (painted) {
+      this.applySprite(painted, cell);
+    } else {
+      // Спрайта нет — рисуем машину вектором, как раньше.
+      this.sprite?.setVisible(false);
+      this.bodyGfx.setVisible(true);
+      drawCarInto(this.bodyGfx, {
+        kind: this.car.kind,
+        color,
+        length: this.car.length,
+        cell,
+        target: this.car.target,
+      });
+    }
 
     this.shadowGfx.clear();
     drawCarShadow(
@@ -91,12 +106,53 @@ export class CarView extends Phaser.GameObjects.Container {
     const vertical = this.car.orientation === 'v';
     if (!vertical) {
       this.setRotation(0);
-      this.bodyGfx.setScale(this.facing === 'left' ? -1 : 1, 1);
+      const flip = this.facing === 'left' ? -1 : 1;
+      this.bodyGfx.setScale(flip, 1);
+      this.sprite?.setFlipX(flip < 0);
     } else {
       this.setRotation(this.facing === 'up' ? -Math.PI / 2 : Math.PI / 2);
       this.bodyGfx.setScale(1, 1);
+      this.sprite?.setFlipX(false);
     }
     if (!this.dragging) this.setScale(1);
+  }
+
+  /**
+   * Текстура кузова: спрайт, перекрашенный под цвет машины. `null` — спрайтов
+   * нет (или маска недоступна), тогда используется векторная отрисовка.
+   */
+  private resolveSpriteTexture(color: number): string | null {
+    if (!this.spriteKey) return null;
+    const base = spriteTextureKey(this.spriteKey, this.car.length);
+    // Целевая машина уже нарисована красной — её не перекрашиваем.
+    if (this.car.target) return this.scene.textures.exists(base) ? base : null;
+    return paintedTextureKey(this.scene, base, color);
+  }
+
+  /** Вписать спрайт в клетки машины, сохранив пропорции картинки. */
+  private applySprite(textureKey: string, cell: number): void {
+    if (!this.sprite) {
+      this.sprite = this.scene.add.image(0, 0, textureKey);
+      this.add(this.sprite);
+    } else {
+      this.sprite.setTexture(textureKey);
+    }
+    const source = this.scene.textures.get(textureKey).getSourceImage();
+    const aspect = source && source.height > 0 ? source.width / source.height : 2;
+    // Спрайт обязан занять свои клетки по длине: у картинок разный собственный
+    // формат, и «вписывание по высоте» оставляло бы короткие машины короче
+    // своих клеток. Ширину при этом ограничиваем клеткой с небольшим запасом.
+    const lengthPx = this.car.length * cell - cell * 0.06;
+    let width = lengthPx;
+    let height = width / aspect;
+    const maxHeight = cell * 1.06;
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspect;
+    }
+    this.sprite.setDisplaySize(width, height);
+    this.sprite.setVisible(true);
+    this.bodyGfx.setVisible(false);
   }
 
   /**

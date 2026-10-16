@@ -25,6 +25,7 @@ import {
 import type { Car, Level, Move, SlideRange } from '../types';
 import { BoardRenderer } from './BoardRenderer';
 import { CarView, type CarFacing } from './CarView';
+import { carSpriteKey, carTextureFiles } from './carSprites';
 import {
   createDragSession,
   dragDeltaCells,
@@ -73,6 +74,17 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super('game');
+  }
+
+  /** Спрайты машин и их маски грузятся один раз на всю игру. */
+  preload(): void {
+    for (const asset of carTextureFiles()) {
+      this.load.image(asset.key, asset.file);
+    }
+    // Отсутствующий спрайт — не ошибка: машина будет нарисована вектором.
+    this.load.on('loaderror', (file: { key?: string }) => {
+      console.warn(`Спрайт машины не загрузился: ${file?.key ?? '?'} — рисую вектором`);
+    });
   }
 
   create(): void {
@@ -195,7 +207,14 @@ export class GameScene extends Phaser.Scene {
       seed: hashString(`board:${level.id}`),
     });
     for (const car of level.cars) {
-      const view = new CarView(this, car, this.metrics, this.facingFor(level, car), this.carSkin);
+      const view = new CarView(
+        this,
+        car,
+        this.metrics,
+        this.facingFor(level, car),
+        this.carSkin,
+        carSpriteKey(car, level.id),
+      );
       view.setDepth(20);
       this.views.set(car.id, view);
     }
@@ -216,7 +235,14 @@ export class GameScene extends Phaser.Scene {
     for (const car of cars) {
       let view = this.views.get(car.id);
       if (!view && this.levelRef) {
-        view = new CarView(this, car, this.metrics, this.facingFor(this.levelRef, car), this.carSkin);
+        view = new CarView(
+          this,
+          car,
+          this.metrics,
+          this.facingFor(this.levelRef, car),
+          this.carSkin,
+          carSpriteKey(car, this.levelRef.id),
+        );
         view.setDepth(20);
         this.views.set(car.id, view);
       }

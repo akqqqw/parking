@@ -169,6 +169,8 @@ export interface Profile {
   perRun: number;
   /** Сколько попыток (обходов) на один уровень, по умолчанию 30. */
   tries?: number;
+  /** Минимальный размер компоненты обхода: меньше — расстановка слишком тесная. */
+  minStates?: number;
   /** Лимит состояний для точного решателя при отборе. */
   parCap: number;
 }
@@ -179,10 +181,10 @@ export interface Profile {
  * блокировок — а значит, выше минимальное число ходов.
  */
 export const PROFILES: Profile[] = [
-  { tier: 'tutorial', from: 6, to: 10, cols: [6], rows: [6], cars: [3, 4], par: [2, 4], cap: 40_000, longBias: 0.3, perRun: 4, parCap: 20_000 },
-  { tier: 'easy', from: 11, to: 25, cols: [6], rows: [6], cars: [5, 7], par: [4, 8], cap: 80_000, longBias: 0.25, perRun: 5, parCap: 25_000 },
-  { tier: 'medium', from: 26, to: 45, cols: [6], rows: [6], cars: [8, 10], par: [8, 13], cap: 120_000, longBias: 0.2, perRun: 6, parCap: 35_000 },
-  { tier: 'hard', from: 46, to: 65, cols: [6], rows: [6], cars: [10, 12], par: [13, 18], cap: 160_000, longBias: 0.2, perRun: 6, parCap: 45_000 },
+  { tier: 'tutorial', from: 6, to: 10, cols: [6], rows: [6], cars: [3, 4], par: [2, 4], cap: 40_000, longBias: 0.3, perRun: 4, parCap: 20_000, minStates: 8 },
+  { tier: 'easy', from: 11, to: 25, cols: [6], rows: [6], cars: [5, 7], par: [4, 8], cap: 80_000, longBias: 0.25, perRun: 5, parCap: 25_000, minStates: 20 },
+  { tier: 'medium', from: 26, to: 45, cols: [6], rows: [6], cars: [8, 10], par: [8, 13], cap: 120_000, longBias: 0.2, perRun: 6, parCap: 35_000, minStates: 60 },
+  { tier: 'hard', from: 46, to: 65, cols: [6], rows: [6], cars: [10, 12], par: [13, 18], cap: 160_000, longBias: 0.2, perRun: 6, parCap: 45_000, minStates: 120 },
   { tier: 'expert', from: 66, to: 85, cols: [7], rows: [7], cars: [17, 19], par: [15, 21], cap: 120_000, longBias: 0.35, perRun: 8, tries: 24, parCap: 80_000 },
   { tier: 'master', from: 86, to: 100, cols: [7, 8], rows: [7, 8], cars: [19, 21], par: [17, 24], cap: 120_000, longBias: 0.4, perRun: 8, tries: 30, parCap: 80_000 },
 ];
@@ -598,7 +600,7 @@ export function makeRun(
       reject('не удалось собрать корневую расстановку');
       continue;
     }
-    if (run.nodes.length < 40) {
+    if (run.nodes.length < (profile.minStates ?? 40)) {
       reject('слишком тесная расстановка');
       continue;
     }
@@ -756,7 +758,7 @@ describe('генератор уровней', () => {
         // Ближайший к желаемому пару уровень из всего, что удалось собрать.
         const consider = (candidate: GeneratedLevel | null): void => {
           if (!candidate) return;
-          if (candidate.par < 4 || candidate.par > tierHigh) return;
+          if (candidate.par < 2 || candidate.par > tierHigh) return;
           if (!fallback || distance(candidate) < distance(fallback)) fallback = candidate;
         };
 
@@ -774,7 +776,7 @@ describe('генератор уровней', () => {
         // Порог сложности опускается, если в диапазоне тарифа ничего не нашлось:
         // уровень обязан быть сгенерирован, но остаётся настолько сложным,
         // насколько позволила конкретная расстановка.
-        const rounds = [Math.max(2, tierLow), Math.max(2, tierLow - 4), 4];
+        const rounds = [Math.max(2, tierLow), Math.max(2, tierLow - 3), 2];
         const perRound = Math.max(4, Math.ceil((profile.tries ?? 30) / rounds.length));
         for (const floor of rounds) {
           if (level) break;
@@ -787,7 +789,7 @@ describe('генератор уровней', () => {
 
             const collected = collectLevels(
               run,
-              [Math.max(4, targetPar - 6), tierHigh],
+              [Math.max(2, targetPar - 6), tierHigh],
               profile.perRun,
               random,
               profile.parCap,
