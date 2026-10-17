@@ -39,7 +39,12 @@ export const TIERS: Record<LevelTier, { label: string; from: number; to: number 
 /** Назначение внешнего вида: детерминированно от номера уровня. */
 function decorateFactory(levelId: number) {
   const random = mulberry32((0x9e3779b9 ^ Math.imul(levelId, 2654435761)) >>> 0);
-  const colorQueue = shuffle(random, CAR_COLOR_KEYS);
+  // Красный закреплён за целевой машиной: обычная машина того же цвета
+  // путала бы игрока, поэтому в очередь цветов он не попадает.
+  const colorQueue = shuffle(
+    random,
+    CAR_COLOR_KEYS.filter((key) => key !== 'red'),
+  );
 
   return (shape: CarShape, index: number): Pick<Car, 'kind' | 'color'> => {
     if (shape.target) {

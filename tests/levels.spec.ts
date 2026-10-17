@@ -46,6 +46,15 @@ describe('каталог уровней', () => {
     }
   });
 
+  it('красный цвет закреплён только за целевой машиной', () => {
+    for (const level of getAllLevels()) {
+      for (const car of level.cars) {
+        if (car.target) expect(car.color).toBe('red');
+        else expect(car.color).not.toBe('red');
+      }
+    }
+  });
+
   it('в каталоге нет почти одинаковых уровней', () => {
     // Порог 85 %: такие пары игрок воспринимает как один и тот же уровень.
     const pairs = findSimilarPairs(all, 0.85, 100);

@@ -84,7 +84,7 @@ const COLORS = {
   purple: 0x8b5cd6, teal: 0x2fb8b0, pink: 0xe86ba0, silver: 0xc4ccd6, graphite: 0x5b6672,
   lime: 0x9ccb3b, bronze: 0xb0784a,
 };
-const COLOR_KEYS = Object.keys(COLORS);
+const COLOR_KEYS = Object.keys(COLORS).filter((key) => key !== 'red');
 function decorate(index, length) {
   const kinds = kindsFor(length);
   const kind = kinds[Math.floor(hashString(`k${index}`) % kinds.length)];
@@ -168,8 +168,10 @@ for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
 const exitY = boardY + level.exitRow * cell;
 for (let y = 0; y < cell; y++) for (let x = 0; x < cell * exitLaneCols; x++)
   blend(frame, boardX + boardW + x, exitY + y, 40, 44, 52, 1);
-for (let i = 0; i < Math.round(cell * 0.4); i++)
-  for (let w = -i; w <= i; w++) blend(frame, boardX + boardW + Math.round(cell * 0.25) + i, exitY + Math.round(cell / 2) + w, 255, 210, 87, 0.9);
+const arrowDepth = Math.round(cell * 0.4);
+for (let i = 0; i < arrowDepth; i++)
+  for (let w = -(arrowDepth - i); w <= arrowDepth - i; w++)
+    blend(frame, boardX + boardW + Math.round(cell * 0.25) + i, exitY + Math.round(cell / 2) + w, 255, 210, 87, 0.9);
 
 // 5) Машины: та же вписываемость и поворот, что в CarView.
 function drawSprite(img, cx, cy, angleDeg, flipX) {
