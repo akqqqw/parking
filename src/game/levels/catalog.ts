@@ -7,6 +7,7 @@
  */
 
 import { GENERATED_LEVELS } from './generated';
+import { HAND_LEVELS } from './hand';
 import { getCustomLevel } from './custom';
 import { buildLevel, type CarShape } from './parse';
 import { mulberry32, shuffle } from '../rng';
@@ -34,40 +35,6 @@ export const TIERS: Record<LevelTier, { label: string; from: number; to: number 
   expert: { label: 'Очень сложно', from: 66, to: 85 },
   master: { label: 'Эксперт', from: 86, to: 100 },
 };
-
-/** Первые уровни — этап 1 (ручная расстановка, проверены решателем). */
-const HAND_LEVELS: LevelDef[] = [
-  {
-    id: 1,
-    name: 'Первые шаги',
-    tier: 'tutorial',
-    map: ['...a..', '...a..', '.**a..', '......', 'bb....', '....ee'],
-  },
-  {
-    id: 2,
-    name: 'Дай дорогу',
-    tier: 'tutorial',
-    map: ['...a..', '...a..', '.**a..', '..cc..', '......', '......'],
-  },
-  {
-    id: 3,
-    name: 'Вверх и вниз',
-    tier: 'tutorial',
-    map: ['..cc..', '..A...', '**AB..', '...B..', '...dd.', '......'],
-  },
-  {
-    id: 4,
-    name: 'Утренняя пробка',
-    tier: 'tutorial',
-    map: ['...gg.', '..C..G', '**CD.G', '..ED..', '..ED..', '...ff.'],
-  },
-  {
-    id: 5,
-    name: 'Полная парковка',
-    tier: 'tutorial',
-    map: ['..BB..', '...A.C', '**.A.C', '...A.C', '..ddd.', 'ee....'],
-  },
-];
 
 /** Назначение внешнего вида: детерминированно от номера уровня. */
 function decorateFactory(levelId: number) {

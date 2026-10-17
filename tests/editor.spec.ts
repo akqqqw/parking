@@ -153,9 +153,8 @@ describe('редактор уровней', () => {
     expect(pairs.length).toBeGreaterThan(0);
     expect(pairs.every((pair) => pair.score >= 0.8 && pair.score <= 1)).toBe(true);
     expect(pairs.every((pair) => pair.a !== pair.b)).toBe(true);
-    expect(pairs.some((pair) => (pair.a === 82 && pair.b === 83) || (pair.a === 83 && pair.b === 82))).toBe(
-      true,
-    );
+    // Пары на 80–85 % в каталоге ещё допустимы, но их должно быть немного.
+    expect(pairs.length).toBeLessThanOrEqual(30);
   });
 });
 

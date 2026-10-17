@@ -318,13 +318,20 @@ export function toMap(state: EditorState): string[] {
   return grid.map((row) => row.join(''));
 }
 
-/** Ключ «внешнего вида» расстановки для поиска похожих уровней. */
-export function layoutSignature(state: EditorState): Set<string> {
-  const target = state.cars.find((car) => car.target);
+/** Минимальная геометрия машины для сравнения расстановок. */
+export type LayoutCar = Pick<Car, 'orientation' | 'x' | 'y' | 'length' | 'target'>;
+
+/**
+ * Ключ «внешнего вида» расстановки: тип, длина и положение каждой машины
+ * относительно цели. Так одинаково устроенные уровни со сдвигом на пару
+ * клеток всё равно считаются похожими.
+ */
+export function layoutSignatureOf(cars: readonly LayoutCar[]): Set<string> {
+  const target = cars.find((car) => car.target);
   const baseX = target ? carPos(target) : 0;
   const baseY = target ? carCross(target) : 0;
   const signature = new Set<string>();
-  for (const car of state.cars) {
+  for (const car of cars) {
     const cross = carCross(car);
     const pos = carPos(car);
     signature.add(`${car.orientation}${car.length}:${cross - baseY}:${pos - baseX}`);
@@ -332,14 +339,21 @@ export function layoutSignature(state: EditorState): Set<string> {
   return signature;
 }
 
+export function layoutSignature(state: EditorState): Set<string> {
+  return layoutSignatureOf(state.cars);
+}
+
+/** Коэффициент Жаккара по двум подписям расстановок. */
+export function similarityOfSignatures(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let shared = 0;
+  for (const item of a) if (b.has(item)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+
 export function layoutSimilarity(a: EditorState, b: EditorState): number {
   if (a.cols !== b.cols || a.rows !== b.rows) return 0;
-  const left = layoutSignature(a);
-  const right = layoutSignature(b);
-  if (left.size === 0 && right.size === 0) return 0;
-  let shared = 0;
-  for (const item of left) if (right.has(item)) shared += 1;
-  return shared / (left.size + right.size - shared);
+  return similarityOfSignatures(layoutSignature(a), layoutSignature(b));
 }
 
 export interface SimilarLevel {
@@ -392,11 +406,7 @@ export function findSimilarPairs(
     for (let j = i + 1; j < prepared.length; j += 1) {
       const left = prepared[i];
       const right = prepared[j];
-      if (left.signature.size === 0 || right.signature.size === 0) continue;
-      let shared = 0;
-      for (const item of left.signature) if (right.signature.has(item)) shared += 1;
-      const union = left.signature.size + right.signature.size - shared;
-      const score = union === 0 ? 0 : shared / union;
+      const score = similarityOfSignatures(left.signature, right.signature);
       if (score >= threshold) pairs.push({ a: left.id, b: right.id, score });
     }
   }

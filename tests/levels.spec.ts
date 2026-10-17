@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { auditLevels, getAllLevels, getPar } from '@/game/levels/catalog';
 import { solve } from '@/game/core/solver';
+import { findSimilarPairs } from '@/game/levels/editor';
 
 describe('каталог уровней', () => {
   const audit = auditLevels();
@@ -43,6 +44,12 @@ describe('каталог уровней', () => {
         `уровень ${index + 1} легче предыдущего (${pars[index - 1]} → ${pars[index]})`,
       ).toBeGreaterThanOrEqual(pars[index - 1] - 2);
     }
+  });
+
+  it('в каталоге нет почти одинаковых уровней', () => {
+    // Порог 85 %: такие пары игрок воспринимает как один и тот же уровень.
+    const pairs = findSimilarPairs(all, 0.85, 100);
+    expect(pairs, JSON.stringify(pairs)).toEqual([]);
   });
 
   it('сложность растёт (пар последних уровней выше первых)', () => {

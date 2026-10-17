@@ -34,6 +34,13 @@ import { solveDetailed } from '@/game/core/solver';
 import { mulberry32 } from '@/game/rng';
 import type { Car, Move, Orientation } from '@/game/types';
 import type { LevelDef, LevelTier } from '@/game/levels/defs';
+import { HAND_LEVELS } from '@/game/levels/hand';
+import {
+  fromMap,
+  layoutSignature,
+  layoutSignatureOf,
+  similarityOfSignatures,
+} from '@/game/levels/editor';
 
 const NAMES: Record<LevelTier, string[]> = {
   tutorial: [
@@ -625,6 +632,8 @@ export interface GeneratedLevel {
   lowerBound?: number;
   /** Оценка «сколько думать»: чем выше, тем интереснее уровень. */
   score?: number;
+  /** Подпись расстановки для контроля повторов (в кэш не пишется). */
+  signature?: Set<string>;
 }
 
 /**
@@ -750,7 +759,7 @@ export function makeRun(
   const rows = profile.rows[Math.floor(random() * profile.rows.length) % profile.rows.length];
   let best: ExploreRun | null = null;
   let bestDepth = -1;
-  const maxRoots = 16;
+  const maxRoots = 32;
 
   for (let attempt = 0; attempt < maxRoots; attempt += 1) {
     const exitRow = 1 + Math.floor(random() * (rows - 2));
@@ -917,6 +926,32 @@ describe('генератор уровней', () => {
     // стартуем не ниже этой планки.
     let prevPar = 6;
 
+    // Контроль разнообразия: сравниваем новую расстановку с ручными уровнями
+    // и со всем, что уже выбрано. Игрок не должен видеть один и тот же
+    // рисунок парковки под новым номером.
+    const chosenSignatures: Set<string>[] = [];
+    for (const def of HAND_LEVELS) {
+      const hand = fromMap(def.map);
+      if (hand) chosenSignatures.push(layoutSignature(hand));
+    }
+    let worstSimilarity = 0;
+    let relaxedChoices = 0;
+    let forcedChoices = 0;
+    const signatureOf = (candidate: GeneratedLevel): Set<string> => {
+      if (!candidate.signature) {
+        candidate.signature = layoutSignatureOf(candidate.cars);
+      }
+      return candidate.signature;
+    };
+    const maxSimilarity = (signature: Set<string>): number => {
+      let max = 0;
+      for (const other of chosenSignatures) {
+        const score = similarityOfSignatures(signature, other);
+        if (score > max) max = score;
+      }
+      return max;
+    };
+
     for (const profile of PROFILES) {
       let runIndex = 0;
       let queue: GeneratedLevel[] = [];
@@ -925,6 +960,9 @@ describe('генератор уровней', () => {
         const cached = cache[String(id)];
         if (cached && !force) {
           generated.push(cached.level);
+          const cachedState = fromMap(cached.level.map);
+          if (cachedState) chosenSignatures.push(layoutSignature(cachedState));
+          prevPar = Math.max(prevPar, cached.level.par ?? prevPar);
           stats.push(
             `#${String(id).padStart(3)} ${profile.tier.padEnd(8)} ${cached.cols}x${cached.rows} par=${String(cached.level.par).padStart(2)}${cached.exact ? '' : '~'} машин=${cached.cars} (из кэша)`,
           );
@@ -935,8 +973,10 @@ describe('генератор уровней', () => {
         const span = Math.max(1, profile.to - profile.from);
         const progress = indexInTier / span;
         const rampPar = Math.round(profile.par[0] + progress * (profile.par[1] - profile.par[0]));
-        // Сквозной рост: на стыке ступеней цель не сбрасывается вниз.
-        const targetPar = Math.max(rampPar, prevPar);
+        // На стыке ступеней допускаем откат не больше двух ходов: иначе
+        // «Сложно» разгоняется до 20 и глубоких расстановок на 6×6 не хватает.
+        const boundaryFloor = Math.min(prevPar - 2, profile.par[1]);
+        const targetPar = Math.max(rampPar, boundaryFloor);
         const carCount = Math.round(
           profile.cars[0] + progress * (profile.cars[1] - profile.cars[0]),
         );
@@ -944,13 +984,17 @@ describe('генератор уровней', () => {
         // Внутри ступени сложность растёт: ближе к концу тарифа нужно больше
         // ходов. Пол сложности (tierLow) не опускаем — иначе снова появятся
         // уровни «в один ход», из-за которых игра казалась лёгкой.
-        const tierLow = Math.max(profile.par[0], prevPar);
-        const tierHigh = Math.max(profile.par[1] + 3, prevPar + 4);
+        const tierLow = Math.max(
+          profile.par[0],
+          Math.min(prevPar - 2, profile.par[1] - 1),
+        );
+        const tierHigh = Math.max(profile.par[1] + 2, targetPar + 2);
         let level: GeneratedLevel | null = null;
 
         const consider = (candidate: GeneratedLevel | null): void => {
           if (!candidate) return;
           if (candidate.par < 2 || candidate.par > tierHigh) return;
+          signatureOf(candidate);
           queue.push(candidate);
         };
 
@@ -959,24 +1003,36 @@ describe('генератор уровней', () => {
           (candidate.score ?? 0) - 2.2 * Math.abs(candidate.par - targetPar);
 
         const takeFromQueue = (floor: number): void => {
-          let bestIndex = -1;
-          let bestScore = -Infinity;
+          const ranked: Array<{ index: number; value: number; similarity: number }> = [];
           for (let index = 0; index < queue.length; index += 1) {
             const candidate = queue[index];
             if (candidate.par < floor) continue;
-            const value = pickScore(candidate);
-            if (value > bestScore) {
-              bestScore = value;
-              bestIndex = index;
-            }
+            ranked.push({
+              index,
+              value: pickScore(candidate),
+              similarity: maxSimilarity(signatureOf(candidate)),
+            });
           }
-          if (bestIndex >= 0) {
-            level = queue[bestIndex];
-            queue.splice(bestIndex, 1);
+          if (ranked.length === 0) return;
+          ranked.sort((a, b) => b.value - a.value);
+          // Сначала — заметно непохожий уровень, затем «почти похожий»,
+          // и только если выбора нет — лучший по качеству.
+          let choice = ranked.find((item) => item.similarity < 0.78);
+          if (!choice) {
+            choice = ranked.find((item) => item.similarity < 0.9);
+            if (choice) relaxedChoices += 1;
           }
+          if (!choice) {
+            choice = ranked[0];
+            forcedChoices += 1;
+          }
+          level = queue[choice.index];
+          queue.splice(choice.index, 1);
         };
 
-        takeFromQueue(tierLow);
+        // Не хватаем первый попавшийся «разнообразный» уровень: в верхних
+        // ступенях важно дождаться кандидата, близкого к целевому пару.
+        takeFromQueue(Math.max(tierLow, targetPar - 2));
 
         // Основной бюджет: держим пол сложности строго. Именно здесь раньше
         // уровни «съезжали» в лёгкие — генератор сдавался после десятка попыток.
@@ -997,7 +1053,7 @@ describe('генератор уровней', () => {
           );
           collected.forEach(consider);
           queue = queue.slice(-600);
-          takeFromQueue(tierLow);
+          takeFromQueue(Math.max(tierLow, targetPar - 2));
         }
 
         // Запасной спуск — только если строгий бюджет исчерпан.
@@ -1015,7 +1071,7 @@ describe('генератор уровней', () => {
           );
           collected.forEach(consider);
           queue = queue.slice(-600);
-          takeFromQueue(Math.max(4, tierLow));
+          takeFromQueue(Math.max(4, targetPar - 6));
         }
 
         if (!level) {
@@ -1028,6 +1084,10 @@ describe('генератор уровней', () => {
           throw new Error(`не удалось сгенерировать уровень ${id}`);
         }
         const value: GeneratedLevel = level;
+        const chosenSignature = signatureOf(value);
+        const chosenSimilarity = maxSimilarity(chosenSignature);
+        if (chosenSimilarity > worstSimilarity) worstSimilarity = chosenSimilarity;
+        chosenSignatures.push(chosenSignature);
         const def: LevelDef = {
           id,
           name: 'placeholder',
@@ -1047,7 +1107,7 @@ describe('генератор уровней', () => {
         prevPar = value.par;
         generated.push(def);
         stats.push(
-          `#${String(id).padStart(3)} ${profile.tier.padEnd(8)} ${value.cols}x${value.rows} par=${String(value.par).padStart(2)}${value.exact ? '' : '~'} машин=${value.cars.length}${value.lowerBound !== undefined ? ` (нижняя оценка ${value.lowerBound})` : ''}`,
+          `#${String(id).padStart(3)} ${profile.tier.padEnd(8)} ${value.cols}x${value.rows} par=${String(value.par).padStart(2)}${value.exact ? '' : '~'} машин=${value.cars.length} похожесть=${(chosenSimilarity * 100).toFixed(0)}%${value.lowerBound !== undefined ? ` (нижняя оценка ${value.lowerBound})` : ''}`,
         );
       }
     }
@@ -1089,6 +1149,8 @@ ${mapLines}
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
     console.log(`\nСгенерировано уровней: ${generated.length} за ${seconds} c\n`);
     console.log(stats.join('\n'));
+    console.log(`\nМаксимальная похожесть выбранного уровня на предыдущие: ${(worstSimilarity * 100).toFixed(0)}%`);
+    console.log(`Отступлений от строгого порога: ${relaxedChoices}, вынужденных: ${forcedChoices}`);
     expect(generated).toHaveLength(95);
   }, 1_800_000);
 });
