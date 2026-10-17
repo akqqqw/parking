@@ -16,6 +16,10 @@ function customLevelsPlugin(): Plugin {
     name: 'parking-custom-levels',
     apply: 'serve',
     configureServer(server) {
+      // Файл пишется из самой игры: слежение за ним перезагружало бы страницу
+      // и выкидывало из редактора. Значения применятся при следующем запуске
+      // или сборке; в текущей сессии уже работает localStorage.
+      server.watcher.unwatch(file);
       server.middlewares.use('/__admin/levels', (request, response) => {
         const reply = (status: number, payload: unknown): void => {
           response.statusCode = status;
