@@ -68,7 +68,10 @@ export function WinDialog(): JSX.Element {
           </b>
         </div>
         <div className="win__row">
-          <span>Лучший результат</span>
+          <span>
+            Лучший результат
+            {result.isRecord ? <span className="win__record">рекорд</span> : null}
+          </span>
           <b>{result.bestMoves}</b>
         </div>
         <div className="win__row win__row--coins">

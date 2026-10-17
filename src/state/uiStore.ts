@@ -15,6 +15,8 @@ export interface WinResult {
   coins: number;
   isNew: boolean;
   bestMoves: number;
+  /** Результат лучше прежнего (или это первое прохождение). */
+  isRecord: boolean;
   /** Бонус и серия за задачу дня (0 и текущая серия, если не дневной). */
   dailyBonus: number;
   dailyDone: boolean;

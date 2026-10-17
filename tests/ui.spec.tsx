@@ -219,6 +219,39 @@ describe('интерфейс игры', () => {
     expect(useUiStore.getState().dialog).toBe('none');
   });
 
+  it('диалог победы отмечает новый рекорд', () => {
+    const level = getLevel(2)!;
+    useGameStore.getState().startLevel(level);
+    useUiStore.setState({
+      screen: 'game',
+      winResult: {
+        levelId: level.id,
+        moves: 8,
+        par: 10,
+        stars: 3,
+        coins: 50,
+        isNew: true,
+        bestMoves: 8,
+        isRecord: true,
+        dailyBonus: 0,
+        dailyDone: false,
+        dailyStreak: 0,
+      },
+    });
+    act(() => useUiStore.getState().openDialog('win'));
+    render(<App />);
+    expect(screen.getByText('рекорд')).toBeTruthy();
+  });
+
+  it('магазин показывает остаток подсказок и отмен', () => {
+    useProgressStore.setState({ coins: 100, hints: 4, undos: 2 });
+    useUiStore.setState({ screen: 'shop' });
+    render(<App />);
+    const balance = document.querySelector('.shop__inventory');
+    expect(balance?.textContent).toContain('4');
+    expect(balance?.textContent).toContain('2');
+  });
+
   it('магазин покупает подсказки за монеты', () => {
     useProgressStore.setState({ coins: 500, hints: 0 });
     useUiStore.setState({ screen: 'shop' });

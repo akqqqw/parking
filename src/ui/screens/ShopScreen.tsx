@@ -45,6 +45,8 @@ export function ShopScreen(): JSX.Element {
   const showToast = useUiStore((state) => state.showToast);
   const [tab, setTab] = useState<Tab>('help');
   const coins = useProgressStore((state) => state.coins);
+  const hints = useProgressStore((state) => state.hints);
+  const undos = useProgressStore((state) => state.undos);
   const owned = useProgressStore((state) => state.ownedSkins);
   const parkingSkin = useProgressStore((state) => state.parkingSkin);
   const carSkin = useProgressStore((state) => state.carSkin);
@@ -76,6 +78,13 @@ export function ShopScreen(): JSX.Element {
             {entry.label}
           </button>
         ))}
+      </div>
+
+      <div className="shop__balance" role="status">
+        <span className="shop__inventory">
+          Сейчас у вас: подсказки — <b>{hints}</b>, отмены — <b>{undos}</b>
+        </span>
+        <CoinBadge value={coins} size={16} />
       </div>
 
       <div className="shop__scroll">

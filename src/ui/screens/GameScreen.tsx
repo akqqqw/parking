@@ -74,6 +74,7 @@ export function GameScreen(): JSX.Element {
       const currentLevel = game.level;
       if (!currentLevel || game.rewardGranted) return;
       game.markRewardGranted();
+      const previousBest = useProgressStore.getState().levels[String(currentLevel.id)]?.bestMoves;
       const result = useProgressStore.getState().completeLevel(currentLevel, moveCount);
       audio.coin();
       // Лидерборд платформы: суммарные звёзды (без SDK — тихий no-op).
@@ -86,6 +87,7 @@ export function GameScreen(): JSX.Element {
         coins: result.coins,
         isNew: result.isNew,
         bestMoves: result.bestMoves,
+        isRecord: previousBest === undefined || moveCount < previousBest,
         dailyBonus: result.dailyBonus,
         dailyDone: result.dailyDone,
         dailyStreak: result.dailyStreak,
