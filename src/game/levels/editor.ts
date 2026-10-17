@@ -366,6 +366,43 @@ export function findSimilarLevels(
     .slice(0, limit);
 }
 
+export interface SimilarPair {
+  a: number;
+  b: number;
+  score: number;
+}
+
+/**
+ * Все пары уровней, похожих друг на друга сильнее порога.
+ *
+ * Нужно для поиска повторов во всём каталоге: одинаково расставленные машины
+ * с разными цветами игрок воспринимает как один и тот же уровень.
+ */
+export function findSimilarPairs(
+  levels: readonly Level[],
+  threshold = 0.8,
+  limit = 20,
+): SimilarPair[] {
+  const prepared = levels.map((level) => ({
+    id: level.id,
+    signature: layoutSignature(fromLevel(level)),
+  }));
+  const pairs: SimilarPair[] = [];
+  for (let i = 0; i < prepared.length; i += 1) {
+    for (let j = i + 1; j < prepared.length; j += 1) {
+      const left = prepared[i];
+      const right = prepared[j];
+      if (left.signature.size === 0 || right.signature.size === 0) continue;
+      let shared = 0;
+      for (const item of left.signature) if (right.signature.has(item)) shared += 1;
+      const union = left.signature.size + right.signature.size - shared;
+      const score = union === 0 ? 0 : shared / union;
+      if (score >= threshold) pairs.push({ a: left.id, b: right.id, score });
+    }
+  }
+  return pairs.sort((x, y) => y.score - x.score).slice(0, limit);
+}
+
 function unique(messages: string[]): string[] {
   return [...new Set(messages)];
 }

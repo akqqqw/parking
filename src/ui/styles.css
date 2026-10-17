@@ -1538,3 +1538,44 @@ button.admin__similar-item:hover {
     max-width: min(520px, 56vh);
   }
 }
+
+.admin__repeats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.admin__similar--list {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin__repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin__repeat-row button {
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.admin__repeat-row b {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}

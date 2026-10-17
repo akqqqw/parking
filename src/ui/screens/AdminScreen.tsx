@@ -27,6 +27,7 @@ import {
   carAt,
   emptyEditor,
   findSimilarLevels,
+  findSimilarPairs,
   fromLevel,
   makeTarget,
   moveCarTo,
@@ -120,6 +121,7 @@ export function AdminScreen(): JSX.Element {
   const [modal, setModal] = useState<ModalKind>('none');
   const [importText, setImportText] = useState('');
   const [projectState, setProjectState] = useState<ProjectState>('idle');
+  const [showRepeats, setShowRepeats] = useState(false);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -134,6 +136,7 @@ export function AdminScreen(): JSX.Element {
     () => findSimilarLevels(state, levels.filter((level) => level.id !== levelId), 3),
     [state, levels, levelId],
   );
+  const repeats = useMemo(() => findSimilarPairs(levels, 0.8, 500), [levels]);
 
   const loadLevel = useCallback((id: number) => {
     const next = getLevel(id);
@@ -696,6 +699,37 @@ export function AdminScreen(): JSX.Element {
             ) : (
               <p className="admin__hint">Похожих расстановок не найдено — уровень не повторяет другие.</p>
             )}
+
+            <div className="admin__repeats">
+              <button
+                type="button"
+                className="admin__tool"
+                aria-expanded={showRepeats}
+                onClick={() => setShowRepeats((value) => !value)}
+              >
+                {showRepeats ? 'Скрыть повторы' : `Найти повторы по каталогу (${repeats.length})`}
+              </button>
+              {showRepeats ? (
+                repeats.length > 0 ? (
+                  <div className="admin__similar admin__similar--list">
+                    {repeats.map((pair) => (
+                      <div key={`${pair.a}-${pair.b}`} className="admin__repeat-row">
+                        <button type="button" onClick={() => requestLoad(pair.a)}>
+                          №{pair.a}
+                        </button>
+                        <span>≈</span>
+                        <button type="button" onClick={() => requestLoad(pair.b)}>
+                          №{pair.b}
+                        </button>
+                        <b>{Math.round(pair.score * 100)}%</b>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="admin__hint">Повторов не найдено.</p>
+                )
+              ) : null}
+            </div>
 
             <label className="admin__checkbox">
               <input

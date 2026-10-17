@@ -94,6 +94,15 @@ describe('скрытая админ-панель', () => {
     expect(screen.getByLabelText('Целевая машина 2 клетки')).toBeTruthy();
   });
 
+  it('показывает повторы по каталогу', () => {
+    act(() => useUiStore.getState().go('admin'));
+    render(<App />);
+    const find = screen.getByRole('button', { name: /Найти повторы по каталогу/ });
+    fireEvent.click(find);
+    expect(screen.getByRole('button', { name: 'Скрыть повторы' })).toBeTruthy();
+    expect(document.querySelectorAll('.admin__repeat-row').length).toBeGreaterThan(0);
+  });
+
   it('ставит машину на сетку и сохраняет уровень в браузере', () => {
     mockBoardRect();
     act(() => useUiStore.getState().go('admin'));

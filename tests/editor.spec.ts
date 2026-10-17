@@ -3,6 +3,7 @@ import {
   addCar,
   emptyEditor,
   findSimilarLevels,
+  findSimilarPairs,
   fromLevel,
   fromMap,
   makeTarget,
@@ -145,6 +146,16 @@ describe('редактор уровней', () => {
 
     const otherSize = findSimilarLevels(emptyEditor(8, 8), [level], 1);
     expect(otherSize).toEqual([]);
+  });
+
+  it('находит повторы по всему каталогу', () => {
+    const pairs = findSimilarPairs(getAllLevels(), 0.8, 100);
+    expect(pairs.length).toBeGreaterThan(0);
+    expect(pairs.every((pair) => pair.score >= 0.8 && pair.score <= 1)).toBe(true);
+    expect(pairs.every((pair) => pair.a !== pair.b)).toBe(true);
+    expect(pairs.some((pair) => (pair.a === 82 && pair.b === 83) || (pair.a === 83 && pair.b === 82))).toBe(
+      true,
+    );
   });
 });
 
