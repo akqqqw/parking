@@ -11,6 +11,7 @@
 import Phaser from 'phaser';
 import { bridge } from '../bridge';
 import { audio } from '@/services/audio';
+import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { buildOccupancy, slideRange } from '../core';
 import { hashString } from '../rng';
@@ -339,6 +340,7 @@ export class GameScene extends Phaser.Scene {
     if (move) {
       useGameStore.getState().registerMove(move);
       audio.snap();
+      haptics.play('snap');
       return;
     }
 
@@ -346,6 +348,7 @@ export class GameScene extends Phaser.Scene {
     if (range.min === range.max) {
       view?.shake();
       audio.error();
+      haptics.play('blocked');
     } else if (moved) {
       audio.snap();
     }
@@ -432,6 +435,7 @@ export class GameScene extends Phaser.Scene {
         view.setDepth(70);
         this.emitConfetti(metrics.originX + (level.cols - 0.5) * metrics.cell, exitY);
         audio.win();
+        haptics.play('win');
       },
       onComplete: () => {
         this.busy = false;

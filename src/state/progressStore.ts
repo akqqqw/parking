@@ -49,6 +49,7 @@ export interface ProgressState {
   soundEnabled: boolean;
   musicEnabled: boolean;
   vibrations: boolean;
+  tutorialSeen: boolean;
   currentLevel: number;
   totalMoves: number;
   levelsCompleted: number;
@@ -68,6 +69,10 @@ export interface ProgressState {
   addHints: (count: number) => void;
   addUndos: (count: number) => void;
   setSetting: (key: 'soundEnabled' | 'musicEnabled' | 'vibrations', value: boolean) => void;
+  /** Закрыть обучение на первом уровне (больше не показывается). */
+  dismissTutorial: () => void;
+  /** Показать обучение снова — например, из паузы. */
+  showTutorial: () => void;
   setCurrentLevel: (levelId: number) => void;
   /** Сбросить звёзды и лучший результат уровня (после замены карты). */
   resetLevelProgress: (levelId: number) => void;
@@ -104,6 +109,7 @@ function snapshotFromState(state: ProgressState): ProgressSnapshot {
     soundEnabled: state.soundEnabled,
     musicEnabled: state.musicEnabled,
     vibrations: state.vibrations,
+    tutorialSeen: state.tutorialSeen,
     currentLevel: state.currentLevel,
     totalMoves: state.totalMoves,
     levelsCompleted: state.levelsCompleted,
@@ -132,6 +138,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   soundEnabled: true,
   musicEnabled: true,
   vibrations: true,
+  tutorialSeen: false,
   currentLevel: 1,
   totalMoves: 0,
   levelsCompleted: 0,
@@ -152,6 +159,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         soundEnabled: data.soundEnabled,
         musicEnabled: data.musicEnabled,
         vibrations: data.vibrations,
+        tutorialSeen: data.tutorialSeen ?? false,
         currentLevel: data.currentLevel,
         totalMoves: data.totalMoves,
         levelsCompleted: data.levelsCompleted,
@@ -254,6 +262,16 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     scheduleSave(get());
   },
 
+  dismissTutorial: () => {
+    set({ tutorialSeen: true });
+    scheduleSave(get());
+  },
+
+  showTutorial: () => {
+    set({ tutorialSeen: false });
+    scheduleSave(get());
+  },
+
   setCurrentLevel: (levelId) => {
     set({ currentLevel: levelId });
     scheduleSave(get());
@@ -294,6 +312,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       currentLevel: 1,
       totalMoves: 0,
       levelsCompleted: 0,
+      tutorialSeen: false,
       ownedSkins: [],
       parkingSkin: defaultProgress().parkingSkin,
       carSkin: defaultProgress().carSkin,

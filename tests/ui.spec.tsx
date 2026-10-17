@@ -17,7 +17,7 @@ import { App } from '../src/App';
 import { hydrateProgress, useProgressStore } from '../src/state/progressStore';
 import { useUiStore } from '../src/state/uiStore';
 import { useGameStore } from '../src/state/gameStore';
-import { getLevel, getLevelCount } from '../src/game/levels/catalog';
+import { getLevel, getLevelCount, getPar } from '../src/game/levels/catalog';
 import { enumerateMoves } from '../src/game/core/rules';
 
 function reset(): void {
@@ -53,6 +53,19 @@ describe('интерфейс игры', () => {
     expect(cards.length).toBe(getLevelCount());
     expect(cards.length).toBe(100);
     expect(document.querySelectorAll('.level-card--locked').length).toBe(99);
+  });
+
+  it('фильтр скрывает пройденные уровни', () => {
+    const level = getLevel(1)!;
+    useProgressStore.getState().completeLevel(level, getPar(level));
+    render(<App />);
+    fireEvent.click(screen.getByText('Уровни'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Не пройдены' }));
+    expect(document.querySelectorAll('.level-card').length).toBe(99);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Все' }));
+    expect(document.querySelectorAll('.level-card').length).toBe(100);
   });
 
   it('«Играть» запускает первый уровень и показывает HUD', async () => {
@@ -100,6 +113,22 @@ describe('интерфейс игры', () => {
     expect(useProgressStore.getState().starsFor(1)).toBe(3);
     expect(useProgressStore.getState().coins).toBeGreaterThan(0);
     expect(useProgressStore.getState().isLevelUnlocked(2)).toBe(true);
+  });
+
+  it('на первом уровне новичок видит урок, и он больше не повторяется', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Играть'));
+    expect(useUiStore.getState().dialog).toBe('tutorial');
+    expect(screen.getByText('Как играть')).toBeTruthy();
+    fireEvent.click(screen.getByText('Понятно'));
+    expect(useUiStore.getState().dialog).toBe('none');
+    expect(useProgressStore.getState().tutorialSeen).toBe(true);
+
+    cleanup();
+    useUiStore.setState({ screen: 'menu', dialog: 'none' });
+    render(<App />);
+    fireEvent.click(screen.getByText('Играть'));
+    expect(useUiStore.getState().dialog).toBe('none');
   });
 
   it('пауза и магазин открываются из игры', () => {

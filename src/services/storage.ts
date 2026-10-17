@@ -26,6 +26,8 @@ export interface ProgressSnapshot {
   soundEnabled: boolean;
   musicEnabled: boolean;
   vibrations: boolean;
+  /** Показан ли новичку короткий урок на первом уровне. */
+  tutorialSeen: boolean;
   currentLevel: number;
   totalMoves: number;
   levelsCompleted: number;
@@ -52,6 +54,7 @@ export function defaultProgress(): ProgressSnapshot {
     soundEnabled: true,
     musicEnabled: true,
     vibrations: true,
+    tutorialSeen: false,
     currentLevel: 1,
     totalMoves: 0,
     levelsCompleted: 0,

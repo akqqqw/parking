@@ -5,7 +5,7 @@ import { getLevel } from '@/game/levels/catalog';
 import { useGameStore } from './gameStore';
 
 export type Screen = 'menu' | 'levels' | 'game' | 'shop' | 'settings' | 'admin';
-export type Dialog = 'win' | 'pause' | 'hint-shop' | 'none';
+export type Dialog = 'win' | 'pause' | 'hint-shop' | 'tutorial' | 'none';
 
 export interface WinResult {
   levelId: number;

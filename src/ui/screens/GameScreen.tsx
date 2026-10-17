@@ -11,6 +11,7 @@ import { submitLeaderboardScore } from '@/services/yandex';
 import { WinDialog } from './dialogs/WinDialog';
 import { PauseDialog } from './dialogs/PauseDialog';
 import { ShopDialog } from './dialogs/ShopDialog';
+import { TutorialDialog } from './dialogs/TutorialDialog';
 
 const GameCanvas = lazy(() => import('../GameCanvas'));
 
@@ -26,6 +27,7 @@ export function GameScreen(): JSX.Element {
   const openDialog = useUiStore((state) => state.openDialog);
   const showToast = useUiStore((state) => state.showToast);
   const setWinResult = useUiStore((state) => state.setWinResult);
+  const tutorialSeen = useProgressStore((state) => state.tutorialSeen);
 
   // Пока решатель ищет ход, кнопка подсказки показывает «думаю…»:
   // на самых плотных уровнях поиск занимает до ~0.8 с.
@@ -35,6 +37,14 @@ export function GameScreen(): JSX.Element {
   const best = useProgressStore((state) =>
     level ? state.levels[String(level.id)]?.bestMoves : undefined,
   );
+
+  // Первый уровень у новичка начинается с короткого урока.
+  const levelId = level?.id;
+  useEffect(() => {
+    if (levelId === 1 && !tutorialSeen && useUiStore.getState().dialog === 'none' && status !== 'won') {
+      useUiStore.getState().openDialog('tutorial');
+    }
+  }, [levelId, tutorialSeen, status]);
 
   // Пауза сцены и звука.
   useEffect(() => {
@@ -172,6 +182,7 @@ export function GameScreen(): JSX.Element {
       {dialog === 'win' ? <WinDialog /> : null}
       {dialog === 'pause' ? <PauseDialog /> : null}
       {dialog === 'hint-shop' ? <ShopDialog /> : null}
+      {dialog === 'tutorial' ? <TutorialDialog /> : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { audio } from '@/services/audio';
+import { haptics } from '@/services/haptics';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'icon' | 'danger';
@@ -36,7 +37,10 @@ export function Button({
       disabled={disabled}
       onClick={(event) => {
         audio.unlock();
-        if (!disabled) audio.click();
+        if (!disabled) {
+          audio.click();
+          haptics.play('tap');
+        }
         onClick?.(event);
       }}
       {...rest}

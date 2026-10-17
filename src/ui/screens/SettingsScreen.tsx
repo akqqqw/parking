@@ -4,6 +4,7 @@ import { Modal } from '../components/Modal';
 import { BackIcon } from '../components/Icons';
 import { CAR_COLOR_KEYS, CAR_COLOR_SKINS, PARKING_SKINS, toCss } from '@/game/theme/palettes';
 import { useProgressStore } from '@/state/progressStore';
+import { getLevelCount } from '@/game/levels/catalog';
 import { useUiStore } from '@/state/uiStore';
 
 interface ToggleProps {
@@ -42,10 +43,15 @@ export function SettingsScreen(): JSX.Element {
     parkingSkin,
     carSkin,
     ownedSkins,
+    totalMoves,
+    levelsCompleted,
     setSetting,
     setSkin,
     resetProgress,
   } = useProgressStore();
+  const totalStars = useProgressStore((state) => state.totalStars());
+  const levelCount = getLevelCount();
+  const starsLimit = levelCount * 3;
   const [confirmReset, setConfirmReset] = useState(false);
 
   return (
@@ -135,6 +141,28 @@ export function SettingsScreen(): JSX.Element {
                 </button>
               );
             })}
+          </div>
+        </section>
+
+        <section className="settings__group">
+          <h2 className="settings__group-title">Статистика</h2>
+          <div className="stats-list">
+            <div className="stats-row">
+              <span>Пройдено уровней</span>
+              <b>
+                {levelsCompleted} / {levelCount}
+              </b>
+            </div>
+            <div className="stats-row">
+              <span>Собрано звёзд</span>
+              <b>
+                {totalStars} / {starsLimit}
+              </b>
+            </div>
+            <div className="stats-row">
+              <span>Всего ходов</span>
+              <b>{totalMoves}</b>
+            </div>
           </div>
         </section>
 

@@ -8,16 +8,22 @@ import { AdminScreen } from './ui/screens/AdminScreen';
 import { useUiStore } from './state/uiStore';
 import { useProgressStore } from './state/progressStore';
 import { audio } from './services/audio';
+import { haptics } from './services/haptics';
 
 export function App(): JSX.Element {
   const screen = useUiStore((state) => state.screen);
   const toast = useUiStore((state) => state.toast);
   const soundEnabled = useProgressStore((state) => state.soundEnabled);
   const musicEnabled = useProgressStore((state) => state.musicEnabled);
+  const vibrations = useProgressStore((state) => state.vibrations);
 
   useEffect(() => {
     audio.setEnabled(soundEnabled);
   }, [soundEnabled]);
+
+  useEffect(() => {
+    haptics.setEnabled(vibrations);
+  }, [vibrations]);
 
   // Скрытая админ-панель: адрес `?admin` / `#admin` или Ctrl+Shift+A.
   // Обычным игрокам она не видна и нигде в интерфейсе не упоминается.

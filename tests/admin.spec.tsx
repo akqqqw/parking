@@ -103,6 +103,23 @@ describe('скрытая админ-панель', () => {
     expect(document.querySelectorAll('.admin__repeat-row').length).toBeGreaterThan(0);
   });
 
+  it('отменяет и возвращает правку', () => {
+    mockBoardRect();
+    act(() => useUiStore.getState().go('admin'));
+    render(<App />);
+    const board = screen.getByTestId('editor-board');
+    const before = board.querySelectorAll('.editor-car').length;
+
+    fireEvent.pointerDown(board, { clientX: 50, clientY: 550 });
+    expect(board.querySelectorAll('.editor-car').length).toBe(before + 1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Отменить/ }));
+    expect(board.querySelectorAll('.editor-car').length).toBe(before);
+
+    fireEvent.click(screen.getByRole('button', { name: '↷ Вернуть' }));
+    expect(board.querySelectorAll('.editor-car').length).toBe(before + 1);
+  });
+
   it('ставит машину на сетку и сохраняет уровень в браузере', () => {
     mockBoardRect();
     act(() => useUiStore.getState().go('admin'));

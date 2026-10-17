@@ -326,15 +326,32 @@ button {
 .levels__tier-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
 .levels__tier-title {
-  margin: 0;
+  margin: 0 auto 0 0;
   font-size: 1rem;
   letter-spacing: 0.02em;
   color: var(--text);
+}
+
+.levels__tier-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.levels__empty {
+  margin: 28px 0 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .levels__tier-range {
@@ -917,6 +934,102 @@ button {
   gap: 10px;
 }
 
+.modal--tutorial {
+  max-width: 380px;
+}
+
+.tutorial {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.tutorial__scheme {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 34px);
+  gap: 4px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #35383d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tutorial__car {
+  border-radius: 7px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.tutorial__car--h {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  background: linear-gradient(180deg, #8fd6ff, #4c9bd6);
+}
+
+.tutorial__car--v {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  background: linear-gradient(180deg, #ffd257, #d8a12c);
+}
+
+.tutorial__car--target {
+  grid-column: 3 / 5;
+  grid-row: 3;
+  background: linear-gradient(180deg, #ff7a59, #c9422a);
+}
+
+.tutorial__exit {
+  position: absolute;
+  right: -6px;
+  bottom: 24px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f0c14b;
+  color: #2b2312;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tutorial__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.pause__toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.stats-row b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .pause__actions {
   display: flex;
   flex-direction: column;
@@ -1249,6 +1362,13 @@ button {
 .editor-exit b {
   font-size: 0.95rem;
   line-height: 1;
+}
+
+.admin__history {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .admin__tools {

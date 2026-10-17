@@ -12,6 +12,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -82,6 +83,13 @@ interface PreviewState {
 type ModalKind = 'none' | 'export' | 'import' | 'code';
 type ProjectState = 'idle' | 'saving' | 'ok' | 'error';
 
+interface HistoryState {
+  past: EditorState[];
+  future: EditorState[];
+}
+
+const HISTORY_LIMIT = 50;
+
 const TOOLS: Array<{ id: EditorTool; label: string; hint: string }> = [
   { id: 'h', label: 'Гориз.', hint: 'Поставить горизонтальную машину' },
   { id: 'v', label: 'Верт.', hint: 'Поставить вертикальную машину' },
@@ -122,6 +130,7 @@ export function AdminScreen(): JSX.Element {
   const [importText, setImportText] = useState('');
   const [projectState, setProjectState] = useState<ProjectState>('idle');
   const [showRepeats, setShowRepeats] = useState(false);
+  const [history, setHistory] = useState<HistoryState>({ past: [], future: [] });
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -148,6 +157,7 @@ export function AdminScreen(): JSX.Element {
     setDirty(false);
     setPreview(null);
     setProjectState('idle');
+    setHistory({ past: [], future: [] });
   }, []);
 
   function requestLoad(id: number): void {
@@ -163,10 +173,58 @@ export function AdminScreen(): JSX.Element {
       showToast('Сюда не помещается');
       return;
     }
+    setHistory((current) => ({
+      past: [...current.past.slice(-(HISTORY_LIMIT - 1)), state],
+      future: [],
+    }));
     setState(next);
     setDirty(true);
     setSelected((current) => (current && next.cars.some((car) => car.id === current) ? current : null));
-  }, [showToast]);
+  }, [showToast, state]);
+
+  const undo = useCallback(() => {
+    if (history.past.length === 0) return;
+    const previous = history.past[history.past.length - 1];
+    setHistory({
+      past: history.past.slice(0, -1),
+      future: [state, ...history.future].slice(0, HISTORY_LIMIT),
+    });
+    setState(previous);
+    setDirty(true);
+    setSelected(null);
+    setPreview(null);
+  }, [history, state]);
+
+  const redo = useCallback(() => {
+    if (history.future.length === 0) return;
+    const nextState = history.future[0];
+    setHistory({
+      past: [...history.past, state].slice(-HISTORY_LIMIT),
+      future: history.future.slice(1),
+    });
+    setState(nextState);
+    setDirty(true);
+    setSelected(null);
+    setPreview(null);
+  }, [history, state]);
+
+  // Ctrl+Z / Ctrl+Shift+Z (и Ctrl+Y) — привычные сочетания редактора.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+      } else if (key === 'y') {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   function cellFromEvent(event: ReactPointerEvent<HTMLDivElement>): { x: number; y: number } | null {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -294,6 +352,7 @@ export function AdminScreen(): JSX.Element {
       setName(updated.name);
     }
     setDirty(false);
+    setHistory({ past: [], future: [] });
     setCatalogVersion((value) => value + 1);
     return true;
   }
@@ -502,6 +561,28 @@ export function AdminScreen(): JSX.Element {
                   <b>→</b>
                 </div>
               ) : null}
+            </div>
+
+            <div className="admin__history" role="group" aria-label="История правок">
+              <button
+                type="button"
+                className="admin__tool"
+                disabled={history.past.length === 0}
+                onClick={undo}
+                title="Ctrl+Z"
+              >
+                ↶ Отменить
+              </button>
+              <button
+                type="button"
+                className="admin__tool"
+                disabled={history.future.length === 0}
+                onClick={redo}
+                title="Ctrl+Shift+Z"
+              >
+                ↷ Вернуть
+              </button>
+              <span className="admin__hint">Ctrl+Z / Ctrl+Shift+Z</span>
             </div>
 
             <div className="admin__tools" role="group" aria-label="Инструменты">
