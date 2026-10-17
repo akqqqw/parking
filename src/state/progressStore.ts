@@ -69,6 +69,8 @@ export interface ProgressState {
   addUndos: (count: number) => void;
   setSetting: (key: 'soundEnabled' | 'musicEnabled' | 'vibrations', value: boolean) => void;
   setCurrentLevel: (levelId: number) => void;
+  /** Сбросить звёзды и лучший результат уровня (после замены карты). */
+  resetLevelProgress: (levelId: number) => void;
   isLevelUnlocked: (levelId: number) => boolean;
   starsFor: (levelId: number) => number;
   totalStars: () => number;
@@ -254,6 +256,20 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
 
   setCurrentLevel: (levelId) => {
     set({ currentLevel: levelId });
+    scheduleSave(get());
+  },
+
+  resetLevelProgress: (levelId) => {
+    const key = String(levelId);
+    if (!get().levels[key]) return;
+    set((state) => {
+      const levels = { ...state.levels };
+      delete levels[key];
+      return {
+        levels,
+        levelsCompleted: Object.values(levels).filter((item) => item.stars > 0).length,
+      };
+    });
     scheduleSave(get());
   },
 

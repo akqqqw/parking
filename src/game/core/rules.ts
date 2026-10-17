@@ -9,18 +9,21 @@
 
 import type { Car, Cell, Level, Move, Orientation, SlideRange } from '../types';
 
+/** Минимальная геометрия машины: достаточно для позиционных хелперов. */
+type CarGeometry = Pick<Car, 'orientation' | 'x' | 'y'>;
+
 /** Ось движения автомобиля в координатах сетки. */
-export function carAxis(car: Car): 'x' | 'y' {
+export function carAxis(car: CarGeometry): 'x' | 'y' {
   return car.orientation === 'h' ? 'x' : 'y';
 }
 
 /** Позиция автомобиля вдоль его оси. */
-export function carPos(car: Car): number {
+export function carPos(car: CarGeometry): number {
   return car.orientation === 'h' ? car.x : car.y;
 }
 
 /** Позиция автомобиля поперёк его оси (строка для горизонтальных, колонка для вертикальных). */
-export function carCross(car: Car): number {
+export function carCross(car: CarGeometry): number {
   return car.orientation === 'h' ? car.y : car.x;
 }
 

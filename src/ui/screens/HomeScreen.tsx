@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Button } from '../components/Button';
 import { CoinBadge } from '../components/Badges';
 import { CarIllustration } from '../components/CarIllustration';
@@ -8,6 +9,22 @@ import { getLevelCount } from '@/game/levels/catalog';
 
 export function HomeScreen(): JSX.Element {
   const go = useUiStore((state) => state.go);
+  const showToast = useUiStore((state) => state.showToast);
+  // Скрытый вход в админ-панель: пять быстрых нажатий на подзаголовок.
+  const secret = useRef({ count: 0, last: 0 });
+
+  function handleSecretTap(): void {
+    const now = Date.now();
+    if (now - secret.current.last > 1200) secret.current.count = 0;
+    secret.current.last = now;
+    secret.current.count += 1;
+    if (secret.current.count >= 5) {
+      secret.current.count = 0;
+      showToast('Режим редактора');
+      go('admin');
+    }
+  }
+
   const openLevel = useUiStore((state) => state.openLevel);
   const coins = useProgressStore((state) => state.coins);
   const levels = useProgressStore((state) => state.levels);
@@ -33,7 +50,13 @@ export function HomeScreen(): JSX.Element {
           <span className="home__title-line">Парковочный</span>
           <span className="home__title-line home__title-line--accent">переполох</span>
         </div>
-        <p className="home__subtitle">Освободите выезд и выведите красную машину с парковки</p>
+        <p
+          className="home__subtitle"
+          onPointerDown={handleSecretTap}
+          title="Освободите выезд и выведите красную машину с парковки"
+        >
+          Освободите выезд и выведите красную машину с парковки
+        </p>
         <div className="home__illustration">
           <CarIllustration width={220} height={110} />
         </div>

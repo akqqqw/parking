@@ -7,6 +7,7 @@
  */
 
 import { GENERATED_LEVELS } from './generated';
+import { getCustomLevel } from './custom';
 import { buildLevel, type CarShape } from './parse';
 import { mulberry32, shuffle } from '../rng';
 import { CAR_COLOR_KEYS } from '../theme/palettes';
@@ -108,15 +109,30 @@ export function getAllLevels(): Level[] {
 
 const levelsById = new Map<number, Level>();
 
+/** Применить ручную правку из админ-панели поверх исходного уровня. */
+function withCustomLevel(def: LevelDef): LevelDef {
+  const custom = getCustomLevel(def.id);
+  if (!custom) return def;
+  return {
+    ...def,
+    name: custom.name || def.name,
+    map: custom.map,
+    par: custom.par ?? def.par,
+  };
+}
+
 /**
  * Список описаний уровней: ручные обучающие 1–5 плюс сгенерированные 6–100.
  *
  * Дубликаты отбрасываются: если генератор когда-нибудь снова начнёт нумерацию
  * с единицы, ручные уровни всё равно останутся первыми и не «перезатрутся».
+ * Уровни, изменённые в скрытой админ-панели, подменяют исходные.
  */
 export function levelDefs(): LevelDef[] {
   const taken = new Set(HAND_LEVELS.map((level) => level.id));
-  return [...HAND_LEVELS, ...GENERATED_LEVELS.filter((level) => !taken.has(level.id))];
+  return [...HAND_LEVELS, ...GENERATED_LEVELS.filter((level) => !taken.has(level.id))].map(
+    withCustomLevel,
+  );
 }
 
 export function getLevel(id: number): Level | undefined {
@@ -131,6 +147,17 @@ export function getLevelCount(): number {
 }
 
 const parCache = new Map<number, number>();
+
+/**
+ * Сбросить собранные уровни и пары. Нужно после правки карты в админ-панели:
+ * игра должна увидеть новую расстановку, а не закэшированную старую.
+ */
+export function resetLevelCache(): void {
+  allLevelsCache = null;
+  levelsById.clear();
+  parCache.clear();
+}
+
 
 /**
  * Минимальное количество ходов для уровня. Если пар не задан в карте, считается

@@ -32,6 +32,11 @@ export function applyMoves(level: Level, moves: readonly Move[]): Car[] {
 const solutionCache = new Map<string, Solution | null>();
 const SOLUTION_CACHE_LIMIT = 60;
 
+/** Сбросить кэш решений (после правки карты в админ-панели). */
+export function clearSolutionCache(): void {
+  solutionCache.clear();
+}
+
 /** Оптимальное решение для расстановки (с кэшированием по состоянию). */
 export function findSolution(level: Level, cars: Car[]): Solution | null {
   const key = `${level.id}|${stateKey(cars)}`;
