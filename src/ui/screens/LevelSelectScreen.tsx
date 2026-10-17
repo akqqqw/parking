@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
 import { CoinBadge } from '../components/Badges';
 import { BackIcon, LockIcon, StarIcon } from '../components/Icons';
@@ -24,6 +24,19 @@ export function LevelSelectScreen(): JSX.Element {
   const coins = useProgressStore((state) => state.coins);
   const allLevels = getAllLevels();
   const [filter, setFilter] = useState<LevelFilter>('all');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Уровень, на котором игрок остановился: первый непройденный среди открытых.
+  const currentId = allLevels.find(
+    (level) => !levels[String(level.id)]?.stars && isUnlocked(level.id),
+  )?.id;
+
+  // При открытии списка прокручиваем к текущему уровню, а не к первому.
+  useEffect(() => {
+    const node = scrollRef.current?.querySelector('.level-card--current');
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ block: 'center' });
+    }
+  }, []);
 
   const visibleLevels = allLevels.filter((level) => {
     const stars = levels[String(level.id)]?.stars ?? 0;
@@ -56,7 +69,7 @@ export function LevelSelectScreen(): JSX.Element {
         ))}
       </div>
 
-      <div className="levels__scroll">
+      <div className="levels__scroll" ref={scrollRef}>
         {visibleLevels.length === 0 ? (
           <p className="levels__empty">В этом фильтре пока нет уровней — самое время сыграть!</p>
         ) : null}
@@ -93,6 +106,7 @@ export function LevelSelectScreen(): JSX.Element {
                         'level-card',
                         unlocked ? '' : 'level-card--locked',
                         progress?.stars ? 'level-card--done' : '',
+                        level.id === currentId ? 'level-card--current' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}

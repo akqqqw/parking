@@ -70,6 +70,16 @@ describe('интерфейс игры', () => {
     expect(level.id).toBeGreaterThanOrEqual(6);
   });
 
+  it('в списке подсвечен ровно один текущий уровень', () => {
+    useProgressStore.getState().hydrate();
+    useProgressStore.getState().completeLevel(getLevel(1)!, getPar(getLevel(1)!));
+    render(<App />);
+    fireEvent.click(screen.getByText('Уровни'));
+    const current = document.querySelectorAll('.level-card--current');
+    expect(current).toHaveLength(1);
+    expect(current[0].textContent).toContain('2');
+  });
+
   it('фильтр скрывает пройденные уровни', () => {
     const level = getLevel(1)!;
     useProgressStore.getState().completeLevel(level, getPar(level));

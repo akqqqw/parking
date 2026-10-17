@@ -550,6 +550,15 @@ button {
   border-color: rgba(120, 230, 160, 0.35);
 }
 
+.level-card--current {
+  border-color: rgba(75, 212, 139, 0.75);
+  box-shadow: 0 0 0 2px rgba(75, 212, 139, 0.35), var(--shadow-soft);
+}
+
+.level-card--current .level-card__id {
+  color: var(--primary);
+}
+
 .level-card--locked {
   opacity: 0.4;
   font-size: 0.9rem;
