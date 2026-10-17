@@ -10,6 +10,13 @@
 /** Минимальный номер уровня: обучение 1–5 в задачу дня не попадает. */
 export const DAILY_FIRST_LEVEL = 6;
 
+/**
+ * Верхняя граница пула. Дневная задача должна быть по силам большинству
+ * игроков: экспертные уровни (пар 19–24) в неё не попадают, иначе новичок
+ * упирается в стену и теряет серию.
+ */
+export const DAILY_LAST_LEVEL = 50;
+
 /** Базовая награда за задачу дня. */
 export const DAILY_BASE_BONUS = 40;
 
@@ -49,7 +56,10 @@ function hashString(value: string): number {
  * всегда даёт один и тот же уровень; подряд идущие дни не повторяются.
  */
 export function dailyLevelId(key: string, levelCount: number): number {
-  const last = Math.max(DAILY_FIRST_LEVEL, levelCount);
+  const last = Math.max(
+    DAILY_FIRST_LEVEL,
+    Math.min(levelCount, DAILY_LAST_LEVEL),
+  );
   const span = last - DAILY_FIRST_LEVEL + 1;
   let index = hashString(`parking-jam:${key}`) % span;
   const previous = hashString(`parking-jam:${addDays(key, -1)}`) % span;

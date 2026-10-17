@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DAILY_BASE_BONUS,
   DAILY_FIRST_LEVEL,
+  DAILY_LAST_LEVEL,
   addDays,
   dailyLevelId,
   dailyReward,
@@ -15,9 +16,20 @@ describe('задача дня', () => {
     for (const key of keys) {
       const id = dailyLevelId(key, 100);
       expect(id).toBeGreaterThanOrEqual(DAILY_FIRST_LEVEL);
-      expect(id).toBeLessThanOrEqual(100);
+      expect(id).toBeLessThanOrEqual(DAILY_LAST_LEVEL);
       expect(dailyLevelId(key, 100)).toBe(id);
     }
+  });
+
+  it('не выдаёт уровни выше пула, даже если каталог длиннее', () => {
+    for (let day = 0; day < 40; day += 1) {
+      const id = dailyLevelId(addDays('2026-02-01', day), 1000);
+      expect(id).toBeLessThanOrEqual(DAILY_LAST_LEVEL);
+    }
+    // Короткий каталог тоже не ломает выбор.
+    const short = dailyLevelId('2026-02-01', 12);
+    expect(short).toBeGreaterThanOrEqual(DAILY_FIRST_LEVEL);
+    expect(short).toBeLessThanOrEqual(12);
   });
 
   it('не повторяет уровень два дня подряд и не застревает на одном', () => {
@@ -26,7 +38,8 @@ describe('задача дня', () => {
     for (let index = 1; index < ids.length; index += 1) {
       expect(ids[index]).not.toBe(ids[index - 1]);
     }
-    expect(new Set(ids).size).toBeGreaterThan(60);
+    // Пул — уровни 6…50, за 120 дней должно выпасть большинство из них.
+    expect(new Set(ids).size).toBeGreaterThan(35);
   });
 
   it('шаг даты переживает конец месяца и года', () => {
