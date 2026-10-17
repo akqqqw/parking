@@ -162,6 +162,27 @@ describe('интерфейс игры', () => {
     expect(screen.getByText('Подсказка за рекламу')).toBeTruthy();
   });
 
+  it('горячие клавиши: отмена, пауза и заново', () => {
+    // Не первый уровень: иначе поверх игры открывается обучающий диалог.
+    const level = getLevel(3)!;
+    useGameStore.getState().startLevel(level);
+    useUiStore.setState({ screen: 'game', dialog: 'none' });
+    useProgressStore.setState({ undos: 3 });
+    render(<App />);
+
+    const legal = enumerateMoves(level.cars, level.cols, level.rows);
+    act(() => {
+      useGameStore.getState().registerMove(legal[0]);
+    });
+    expect(useGameStore.getState().moves).toHaveLength(1);
+
+    fireEvent.keyDown(window, { key: 'z' });
+    expect(useGameStore.getState().moves).toHaveLength(0);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(useUiStore.getState().dialog).toBe('pause');
+  });
+
   it('магазин покупает подсказки за монеты', () => {
     useProgressStore.setState({ coins: 500, hints: 0 });
     useUiStore.setState({ screen: 'shop' });

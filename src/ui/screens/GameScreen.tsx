@@ -79,6 +79,31 @@ export function GameScreen(): JSX.Element {
     return off;
   }, [setWinResult]);
 
+  // Горячие клавиши для игры с клавиатуры (ПК/планшет с клавиатурой).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (dialog !== 'none' || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      const key = event.key.toLowerCase();
+      if (key === 'h' || key === 'р') {
+        event.preventDefault();
+        requestHint();
+      } else if (key === 'z' || key === 'u' || key === 'я') {
+        event.preventDefault();
+        requestUndo();
+      } else if (key === 'r' || key === 'к') {
+        event.preventDefault();
+        useGameStore.getState().restart();
+      } else if (key === 'escape') {
+        event.preventDefault();
+        openDialog('pause');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   if (!level) {
     return (
       <div className="screen screen--game">
@@ -87,7 +112,7 @@ export function GameScreen(): JSX.Element {
     );
   }
 
-  const requestHint = (): void => {
+  function requestHint(): void {
     const game = useGameStore.getState();
     if (!game.level || game.status === 'won') {
       showToast('Уровень уже решён!');
@@ -111,9 +136,9 @@ export function GameScreen(): JSX.Element {
       useProgressStore.getState().useHint();
       audio.pick();
     }, 40);
-  };
+  }
 
-  const requestUndo = (): void => {
+  function requestUndo(): void {
     const game = useGameStore.getState();
     if (!game.canUndo()) return;
     const progress = useProgressStore.getState();
@@ -127,7 +152,7 @@ export function GameScreen(): JSX.Element {
     // Сброс подсказки, если она была связана с отменённым ходом.
     useGameStore.getState().clearHint();
     audio.snap();
-  };
+  }
 
   return (
     <div className="screen screen--game">
@@ -155,6 +180,10 @@ export function GameScreen(): JSX.Element {
         <span className="stat stat--muted">Пар: {par}</span>
         {best !== undefined ? <span className="stat stat--muted">Рекорд: {best}</span> : null}
       </div>
+
+      <p className="hud__keys" aria-hidden="true">
+        H — подсказка · Z — отмена · R — заново · Esc — пауза
+      </p>
 
       <div className="hud hud--bottom">
         <Button

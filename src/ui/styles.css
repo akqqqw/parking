@@ -261,6 +261,20 @@ button {
   font-size: 0.82rem;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .home__illustration {
+    animation: none;
+  }
+}
+
 /* ----------------------------------------------------------- кнопки ------- */
 
 .btn {
@@ -794,6 +808,22 @@ button {
 
 .stat--muted {
   color: var(--text-muted);
+}
+
+.hud__keys {
+  display: none;
+  margin: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hud__keys {
+    display: block;
+  }
 }
 
 .hud--bottom {

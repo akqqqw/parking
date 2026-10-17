@@ -50,6 +50,12 @@ interface DragState extends DragSession {
 
 const SNAP_DURATION = 140;
 
+/** Игрок просил систему уменьшить анимацию — тогда снапим без «плавности». */
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export class GameScene extends Phaser.Scene {
   private levelRef: Level | null = null;
   private cars: Car[] = [];
@@ -166,7 +172,7 @@ export class GameScene extends Phaser.Scene {
       this.syncCars(state.cars, 0);
       bridge.emit('level:loaded', { level: state.level });
     } else if (state.cars !== this.carsRef) {
-      this.syncCars(state.cars, SNAP_DURATION);
+      this.syncCars(state.cars, prefersReducedMotion() ? 0 : SNAP_DURATION);
     }
 
     if (state.hint && state.hint.token !== this.hintToken) {
@@ -344,7 +350,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (view) void view.slideTo(this.metrics, startAxisPos, SNAP_DURATION);
+    if (view) void view.slideTo(this.metrics, startAxisPos, prefersReducedMotion() ? 0 : SNAP_DURATION);
     if (range.min === range.max) {
       view?.shake();
       audio.error();
@@ -362,7 +368,7 @@ export class GameScene extends Phaser.Scene {
     this.board.clearTrack();
     const view = this.views.get(carId);
     view?.setDragging(false);
-    if (view) void view.slideTo(this.metrics, startAxisPos, SNAP_DURATION);
+    if (view) void view.slideTo(this.metrics, startAxisPos, prefersReducedMotion() ? 0 : SNAP_DURATION);
   }
 
   // ---------------------------------------------------------------- помощники
@@ -429,7 +435,7 @@ export class GameScene extends Phaser.Scene {
       targets: view,
       x: exitX,
       y: exitY,
-      duration: 820,
+      duration: prefersReducedMotion() ? 200 : 820,
       ease: 'Cubic.easeIn',
       onStart: () => {
         view.setDepth(70);
