@@ -80,6 +80,12 @@ describe('интерфейс игры', () => {
     expect(current[0].textContent).toContain('2');
   });
 
+  it('в списке отмечен уровень задачи дня', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Уровни'));
+    expect(document.querySelectorAll('.level-card__daily')).toHaveLength(1);
+  });
+
   it('фильтр скрывает пройденные уровни', () => {
     const level = getLevel(1)!;
     useProgressStore.getState().completeLevel(level, getPar(level));

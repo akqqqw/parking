@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
 import { CoinBadge } from '../components/Badges';
-import { BackIcon, LockIcon, StarIcon } from '../components/Icons';
-import { getAllLevels, TIERS, type LevelTier } from '@/game/levels/catalog';
+import { BackIcon, FlameIcon, LockIcon, StarIcon } from '../components/Icons';
+import { getAllLevels, getLevelCount, TIERS, type LevelTier } from '@/game/levels/catalog';
+import { dailyLevelId, dateKey } from '@/game/daily';
 import { useProgressStore } from '@/state/progressStore';
 import { useUiStore } from '@/state/uiStore';
 
@@ -24,6 +25,7 @@ export function LevelSelectScreen(): JSX.Element {
   const coins = useProgressStore((state) => state.coins);
   const allLevels = getAllLevels();
   const [filter, setFilter] = useState<LevelFilter>('all');
+  const dailyId = dailyLevelId(dateKey(), getLevelCount());
   const scrollRef = useRef<HTMLDivElement>(null);
   // Уровень, на котором игрок остановился: первый непройденный среди открытых.
   const currentId = allLevels.find(
@@ -115,6 +117,11 @@ export function LevelSelectScreen(): JSX.Element {
                       title={level.par ? `${level.name} · пар ${level.par}` : level.name}
                       onClick={() => openLevel(level.id)}
                     >
+                      {level.id === dailyId ? (
+                        <span className="level-card__daily" title="Задача дня">
+                          <FlameIcon size={11} />
+                        </span>
+                      ) : null}
                       <span className="level-card__id">{level.id}</span>
                       {unlocked ? (
                         <span className="level-card__stars">
