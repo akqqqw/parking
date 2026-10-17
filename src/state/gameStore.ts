@@ -57,6 +57,8 @@ export interface HintPayload {
   /** Направление подсказанного хода — для стрелки на экране. */
   to: number;
   axis: 'x' | 'y';
+  /** Это повтор той же подсказки: ход не изменился, списывать её не нужно. */
+  repeated?: boolean;
 }
 
 export interface GameStoreState {
@@ -159,16 +161,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   showHint: () => {
-    const { level, cars } = get();
+    const { level, cars, hint } = get();
     if (!level) return null;
     const solution = findSolution(level, cars);
     if (!solution || solution.moves.length === 0) return null;
     const first = solution.moves[0];
+    // Игрок нажал «подсказку» повторно, ничего не сделав: ход тот же,
+    // поэтому не списываем ещё одну и не мигаем подсветкой заново.
+    if (hint && hint.carId === first.carId && hint.to === first.to && hint.axis === first.axis) {
+      return { ...hint, repeated: true };
+    }
     const payload: HintPayload = {
       carId: first.carId,
       token: Date.now(),
       to: first.to,
       axis: first.axis,
+      repeated: false,
     };
     set((state) => ({ hint: payload, hintsUsed: state.hintsUsed + 1 }));
     return payload;

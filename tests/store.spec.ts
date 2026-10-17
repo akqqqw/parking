@@ -71,6 +71,23 @@ describe('игровая сессия', () => {
     expect(payload?.to).toBe(firstMove.to);
   });
 
+  it('повторная подсказка не списывает ещё одну и не мигает заново', () => {
+    const first = useGameStore.getState().showHint()!;
+    const used = useGameStore.getState().hintsUsed;
+    const second = useGameStore.getState().showHint()!;
+    expect(second.repeated).toBe(true);
+    expect(second.token).toBe(first.token);
+    expect(useGameStore.getState().hintsUsed).toBe(used);
+
+    // После хода подсказка становится новой и снова считается.
+    useGameStore.getState().registerMove(firstMove);
+    const third = useGameStore.getState().showHint();
+    if (third) {
+      expect(third.repeated).toBe(false);
+      expect(useGameStore.getState().hintsUsed).toBe(used + 1);
+    }
+  });
+
   it('applyMoves воспроизводит расстановку из ходов', () => {
     const cars = applyMoves(level, solution.moves);
     expect(isSolved(level, cars)).toBe(true);

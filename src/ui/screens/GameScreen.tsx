@@ -150,6 +150,10 @@ export function GameScreen(): JSX.Element {
         showToast('Подсказка не нужна: путь свободен');
         return;
       }
+      if (payload.repeated) {
+        showToast('Этот ход уже подсказан');
+        return;
+      }
       useProgressStore.getState().useHint();
       audio.pick();
     }, 40);
