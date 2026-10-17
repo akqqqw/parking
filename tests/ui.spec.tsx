@@ -18,6 +18,7 @@ import { hydrateProgress, useProgressStore } from '../src/state/progressStore';
 import { useUiStore } from '../src/state/uiStore';
 import { useGameStore } from '../src/state/gameStore';
 import { getLevel, getLevelCount } from '../src/game/levels/catalog';
+import { enumerateMoves } from '../src/game/core/rules';
 
 function reset(): void {
   useUiStore.setState({ screen: 'menu', dialog: 'none', winResult: null, toast: null });
@@ -72,13 +73,12 @@ describe('интерфейс игры', () => {
     useUiStore.setState({ screen: 'game' });
     render(<App />);
 
-    // Целевая машина уровня 1 стоит в строке выезда, но путь перекрыт.
+    // Берём любой допустимый ход из текущей расстановки.
     const game = useGameStore.getState();
-    const first = game.cars.find((car) => !car.target && car.orientation === 'v')!;
+    const legal = enumerateMoves(game.cars, level.cols, level.rows);
+    expect(legal.length).toBeGreaterThan(0);
     act(() => {
-      useGameStore
-        .getState()
-        .registerMove({ carId: first.id, axis: 'y', from: first.y, to: first.y + 1 });
+      useGameStore.getState().registerMove(legal[0]);
     });
     expect(useGameStore.getState().moves).toHaveLength(1);
     expect(document.querySelector('.hud--stats')?.textContent).toContain('Ходы: 1');

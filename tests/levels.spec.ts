@@ -11,6 +11,13 @@ describe('каталог уровней', () => {
     expect(broken, JSON.stringify(broken, null, 2)).toEqual([]);
   });
 
+  it('в каталоге 100 уровней с уникальными номерами', () => {
+    const ids = all.map((level) => level.id);
+    expect(ids).toHaveLength(100);
+    expect(new Set(ids).size).toBe(100);
+    expect(ids).toEqual(Array.from({ length: 100 }, (_, index) => index + 1));
+  });
+
   it('у каждого уровня есть решение и пар', () => {
     for (const item of audit) {
       expect(item.par, `уровень ${item.id}`).not.toBeNull();
@@ -23,6 +30,18 @@ describe('каталог уровней', () => {
       const solution = solve(level.cars, level.cols, level.rows, level.exitRow);
       expect(solution, `уровень ${level.id}`).not.toBeNull();
       expect(solution!.steps).toBe(getPar(level));
+    }
+  });
+
+  it('сложность не проваливается от уровня к уровню', () => {
+    const pars = all.map((level) => getPar(level));
+    for (let index = 1; index < pars.length; index += 1) {
+      // Небольшой «отскок» допустим, заметный провал — нет: игрок не должен
+      // после тяжёлого уровня получать заметно более лёгкий.
+      expect(
+        pars[index],
+        `уровень ${index + 1} легче предыдущего (${pars[index - 1]} → ${pars[index]})`,
+      ).toBeGreaterThanOrEqual(pars[index - 1] - 2);
     }
   });
 

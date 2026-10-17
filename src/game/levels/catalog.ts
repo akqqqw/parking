@@ -108,9 +108,15 @@ export function getAllLevels(): Level[] {
 
 const levelsById = new Map<number, Level>();
 
-/** Список описаний уровней: ручные уровни 1–5 плюс сгенерированные 6–100. */
+/**
+ * Список описаний уровней: ручные обучающие 1–5 плюс сгенерированные 6–100.
+ *
+ * Дубликаты отбрасываются: если генератор когда-нибудь снова начнёт нумерацию
+ * с единицы, ручные уровни всё равно останутся первыми и не «перезатрутся».
+ */
 export function levelDefs(): LevelDef[] {
-  return [...HAND_LEVELS, ...GENERATED_LEVELS];
+  const taken = new Set(HAND_LEVELS.map((level) => level.id));
+  return [...HAND_LEVELS, ...GENERATED_LEVELS.filter((level) => !taken.has(level.id))];
 }
 
 export function getLevel(id: number): Level | undefined {

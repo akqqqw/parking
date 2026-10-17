@@ -29,7 +29,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { applyMove, buildOccupancy, isSolved, slideRange } from '@/game/core/rules';
+import { applyMove, buildOccupancy, enumerateMoves, isSolved, slideRange } from '@/game/core/rules';
 import { solveDetailed } from '@/game/core/solver';
 import { mulberry32 } from '@/game/rng';
 import type { Car, Move, Orientation } from '@/game/types';
@@ -181,12 +181,15 @@ export interface Profile {
  * блокировок — а значит, выше минимальное число ходов.
  */
 export const PROFILES: Profile[] = [
-  { tier: 'tutorial', from: 6, to: 10, cols: [6], rows: [6], cars: [3, 4], par: [2, 4], cap: 40_000, longBias: 0.3, perRun: 4, parCap: 20_000, minStates: 8 },
-  { tier: 'easy', from: 11, to: 25, cols: [6], rows: [6], cars: [5, 7], par: [4, 8], cap: 80_000, longBias: 0.25, perRun: 5, parCap: 25_000, minStates: 20 },
-  { tier: 'medium', from: 26, to: 45, cols: [6], rows: [6], cars: [8, 10], par: [8, 13], cap: 120_000, longBias: 0.2, perRun: 6, parCap: 35_000, minStates: 60 },
-  { tier: 'hard', from: 46, to: 65, cols: [6], rows: [6], cars: [10, 12], par: [13, 18], cap: 160_000, longBias: 0.2, perRun: 6, parCap: 45_000, minStates: 120 },
-  { tier: 'expert', from: 66, to: 85, cols: [7], rows: [7], cars: [17, 19], par: [15, 21], cap: 120_000, longBias: 0.35, perRun: 8, tries: 24, parCap: 80_000 },
-  { tier: 'master', from: 86, to: 100, cols: [7, 8], rows: [7, 8], cars: [19, 21], par: [17, 24], cap: 120_000, longBias: 0.4, perRun: 8, tries: 30, parCap: 80_000 },
+  // 100 уровней на поле 6x6. Сложность задаётся не плотностью (плотная доска
+  // «запирается» и ходов почти нет), а длиной вынужденной цепочки: глубокие
+  // компоненты живут на 9–11 машинах с большим числом длинных кузовов.
+  { tier: 'tutorial', from: 6, to: 10, cols: [6], rows: [6], cars: [7, 8], par: [4, 6], cap: 60_000, longBias: 0.45, perRun: 6, tries: 40, minStates: 20, parCap: 40_000 },
+  { tier: 'easy', from: 11, to: 25, cols: [6], rows: [6], cars: [8, 9], par: [6, 9], cap: 90_000, longBias: 0.5, perRun: 8, tries: 50, minStates: 40, parCap: 50_000 },
+  { tier: 'medium', from: 26, to: 45, cols: [6], rows: [6], cars: [9, 10], par: [9, 13], cap: 120_000, longBias: 0.5, perRun: 12, tries: 60, minStates: 60, parCap: 60_000 },
+  { tier: 'hard', from: 46, to: 65, cols: [6], rows: [6], cars: [9, 10], par: [12, 16], cap: 120_000, longBias: 0.5, perRun: 14, tries: 80, minStates: 60, parCap: 60_000 },
+  { tier: 'expert', from: 66, to: 85, cols: [6], rows: [6], cars: [9, 11], par: [15, 20], cap: 140_000, longBias: 0.5, perRun: 16, tries: 100, minStates: 60, parCap: 70_000 },
+  { tier: 'master', from: 86, to: 100, cols: [6], rows: [6], cars: [9, 11], par: [18, 25], cap: 150_000, longBias: 0.55, perRun: 16, tries: 120, minStates: 60, parCap: 70_000 },
 ];
 
 
@@ -357,6 +360,127 @@ export function buildRoot(
   return { ways: fitted, positions: Uint8Array.from(positionsList), cross };
 }
 
+/**
+ * Плотная «решённая» расстановка.
+ *
+ * Случайное размещение (buildRoot) оставляет много свободных клеток: цель
+ * выезжает почти сразу, и уровень получается лёгким. Здесь наоборот — доска
+ * забивается машинами под завязку, причём приоритет отдаётся машинам,
+ * которые перекрывают строку выезда слева от цели и прилегают к уже
+ * поставленным. Чем плотнее доска, тем больше ходов вынуждены и тем глубже
+ * получается компонента при обходе.
+ */
+export function packRoot(
+  ways: Array<{ length: number; orientation: Orientation }>,
+  cols: number,
+  rows: number,
+  exitRow: number,
+  random: () => number,
+): { ways: Array<{ length: number; orientation: Orientation }>; positions: Uint8Array; cross: number[] } | null {
+  const occupied = new Set<number>();
+  const fitted: Array<{ length: number; orientation: Orientation }> = [];
+  const positionsList: number[] = [];
+  const cross: number[] = [];
+  const cellAt = (x: number, y: number): number => y * cols + x;
+
+  const canPlace = (x: number, y: number, length: number, orientation: Orientation): boolean => {
+    for (let i = 0; i < length; i += 1) {
+      const cx = orientation === 'h' ? x + i : x;
+      const cy = orientation === 'h' ? y : y + i;
+      if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) return false;
+      if (occupied.has(cellAt(cx, cy))) return false;
+    }
+    return true;
+  };
+
+  const mark = (x: number, y: number, length: number, orientation: Orientation): void => {
+    for (let i = 0; i < length; i += 1) {
+      const cx = orientation === 'h' ? x + i : x;
+      const cy = orientation === 'h' ? y : y + i;
+      occupied.add(cellAt(cx, cy));
+    }
+  };
+
+  const placeAt = (
+    shape: { length: number; orientation: Orientation },
+    axis: number,
+    crossCoord: number,
+  ): void => {
+    fitted.push(shape);
+    positionsList.push(axis);
+    cross.push(crossCoord);
+    if (shape.orientation === 'h') mark(axis, crossCoord, shape.length, 'h');
+    else mark(crossCoord, axis, shape.length, 'v');
+  };
+
+  // Цель уже у выезда: уровень «решён».
+  const targetShape = ways[0];
+  const targetX = cols - targetShape.length;
+  if (targetX < 0) return null;
+  placeAt(targetShape, targetX, exitRow);
+
+  const rest = ways.slice(1).map((shape, index) => ({ shape, index: index + 1 }));
+  for (let i = rest.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    const tmp = rest[i];
+    rest[i] = rest[j];
+    rest[j] = tmp;
+  }
+
+  let skipped = 0;
+  for (const item of rest) {
+    const shape = item.shape;
+    const limit = shape.orientation === 'h' ? cols : rows;
+    if (shape.length > limit) {
+      skipped += 1;
+      continue;
+    }
+    let best: { axis: number; crossCoord: number; score: number } | null = null;
+    const gridPositions: Array<{ x: number; y: number; axis: number; crossCoord: number }> = [];
+    for (let crossCoord = 0; crossCoord < (shape.orientation === 'h' ? rows : cols); crossCoord += 1) {
+      for (let axis = 0; axis <= limit - shape.length; axis += 1) {
+        const x = shape.orientation === 'h' ? axis : crossCoord;
+        const y = shape.orientation === 'h' ? crossCoord : axis;
+        if (!canPlace(x, y, shape.length, shape.orientation)) continue;
+        gridPositions.push({ x, y, axis, crossCoord });
+      }
+    }
+    for (const spot of gridPositions) {
+      let score = random() * 1.5;
+      // Машина перекрывает строку выезда слева от цели — цель заперта.
+      if (shape.orientation === 'v' && spot.crossCoord < targetX && spot.axis <= exitRow && exitRow < spot.axis + shape.length) {
+        score += 4;
+      }
+      if (shape.orientation === 'h' && spot.crossCoord === exitRow && spot.x + shape.length <= targetX) {
+        score += 3;
+      }
+      // Прилегание к уже стоящим машинам — доска получается плотной, без «карманов».
+      const x = spot.x;
+      const y = spot.y;
+      for (let i = 0; i < shape.length; i += 1) {
+        const cx = shape.orientation === 'h' ? x + i : x;
+        const cy = shape.orientation === 'h' ? y : y + i;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (occupied.has(cellAt(cx + dx, cy + dy))) score += 0.6;
+        }
+      }
+      // Края доски тоже «якоря»: так не остаётся пустых полос.
+      if (x === 0 || y === 0 || x + shape.length === cols || y + shape.length === rows) score += 0.3;
+      if (!best || score > best.score) best = { axis: spot.axis, crossCoord: spot.crossCoord, score };
+    }
+    if (!best) {
+      skipped += 1;
+      continue;
+    }
+    placeAt(shape, best.axis, best.crossCoord);
+  }
+
+  if (skipped > 1 || fitted.length < 5) return null;
+  const filled = occupied.size;
+  if (filled / (cols * rows) < 0.62) return null;
+  return { ways: fitted, positions: Uint8Array.from(positionsList), cross };
+}
+
 /** Развернуть состояние обхода в список машин. */
 export function toCars(run: ExploreRun, positions: Uint8Array): Car[] {
   return run.shapes.map((shape, i) => {
@@ -499,6 +623,44 @@ export interface GeneratedLevel {
   par: number;
   exact: boolean;
   lowerBound?: number;
+  /** Оценка «сколько думать»: чем выше, тем интереснее уровень. */
+  score?: number;
+}
+
+/**
+ * Оценка сложности уровня для игрока.
+ *
+ * Пар сам по себе — не всё: длинная цепочка, где на каждом шаге есть ровно
+ * один ход, играется механически, а короткая с двумя-тремя равноправными
+ * вариантами заставляет считать. Поэтому к пару добавляем число разных машин
+ * в решении и «возвраты» (машина едет туда и обратно — их трудно увидеть),
+ * а развилки оцениваем по расстоянию до комфортных 3–4 вариантов.
+ */
+export function rateCandidate(run: ExploreRun, index: number, cars: Car[], par: number): number {
+  const solution = pathToGoal(run, index);
+  let state = cars;
+  let reversals = 0;
+  let branchingSum = 0;
+  const distinct = new Set<string>();
+  const lastDirection = new Map<string, number>();
+
+  for (const move of solution) {
+    branchingSum += enumerateMoves(state, run.cols, run.rows).length;
+    distinct.add(move.carId);
+    const direction = Math.sign(move.to - move.from);
+    const previous = lastDirection.get(move.carId);
+    if (previous !== undefined && previous !== direction) reversals += 1;
+    lastDirection.set(move.carId, direction);
+    state = applyMove(state, move);
+  }
+
+  const branching = solution.length > 0 ? branchingSum / solution.length : 0;
+  return (
+    par * 0.4 +
+    distinct.size * 0.9 +
+    reversals * 1.1 -
+    Math.abs(branching - 3.5) * 0.9
+  );
 }
 
 function letter(i: number, orientation: Orientation): string {
@@ -570,15 +732,27 @@ export function buildWays(
   return ways;
 }
 
+/**
+ * Собрать обход от решённой расстановки, стараясь получить глубокую компоненту.
+ *
+ * Один случайный корень редко даёт длинные решения, поэтому перебираем
+ * несколько расстановок и оставляем ту, где максимальный пар больше. Как
+ * только глубина достигла целевой, обход прекращаем — дальше искать незачем.
+ */
 export function makeRun(
   profile: Profile,
   random: () => number,
   carCount: number,
   runIndex: number,
+  targetDepth = 0,
 ): ExploreRun | null {
   const cols = profile.cols[Math.floor(random() * profile.cols.length) % profile.cols.length];
   const rows = profile.rows[Math.floor(random() * profile.rows.length) % profile.rows.length];
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  let best: ExploreRun | null = null;
+  let bestDepth = -1;
+  const maxRoots = 16;
+
+  for (let attempt = 0; attempt < maxRoots; attempt += 1) {
     const exitRow = 1 + Math.floor(random() * (rows - 2));
     const ways = buildWays(random, cols, rows, carCount, profile.longBias);
     const root = buildRoot(ways, cols, rows, exitRow, random);
@@ -593,20 +767,30 @@ export function makeRun(
       exitRow,
       profile.cap,
       random,
-      `run-${runIndex}`,
+      `run-${runIndex}-${attempt}`,
       root,
     );
-    if (!run) {
-      reject('не удалось собрать корневую расстановку');
-      continue;
-    }
+    if (!run) continue;
     if (run.nodes.length < (profile.minStates ?? 40)) {
       reject('слишком тесная расстановка');
       continue;
     }
-    return run;
+    const maxPar = maxParOf(run);
+    if (maxPar > bestDepth) {
+      bestDepth = maxPar;
+      best = run;
+    }
+    if (bestDepth >= targetDepth) break;
   }
-  return null;
+
+  return best;
+}
+
+/** Максимальный пар в обходе (глубина самой дальней от победы позиции). */
+export function maxParOf(run: ExploreRun): number {
+  let max = 0;
+  for (const value of run.goalDist) if (value > max) max = value;
+  return max;
 }
 
 export function collectLevels(
@@ -626,6 +810,7 @@ export function collectLevels(
     if (dist < lowPar || dist > highPar) continue;
     candidates.push(index);
   }
+  // Перемешиваем, чтобы при равных оценках уровни не были однотипными.
   for (let i = candidates.length - 1; i > 0; i -= 1) {
     const j = Math.floor(random() * (i + 1));
     const tmp = candidates[i];
@@ -634,7 +819,7 @@ export function collectLevels(
   }
 
   let checked = 0;
-  const maxChecks = Math.max(40, count * 10);
+  const maxChecks = Math.max(60, count * 14);
   for (const index of candidates) {
     if (results.length >= count || checked >= maxChecks) break;
     const node = run.nodes[index];
@@ -667,9 +852,12 @@ export function collectLevels(
       reject(`пар вне диапазона ${par}`);
       continue;
     }
-    results.push({ cars, cols: run.cols, rows: run.rows, exitRow: run.exitRow, par, exact });
+    const score = run.capped ? 0 : rateCandidate(run, index, cars, par);
+    results.push({ cars, cols: run.cols, rows: run.rows, exitRow: run.exitRow, par, exact, score });
   }
 
+  // Лучшие по «сколько думать» — вперёд.
+  results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return results;
 }
 
@@ -724,6 +912,11 @@ describe('генератор уровней', () => {
     const generated: LevelDef[] = [];
     const stats: string[] = [];
 
+    // Первые пять уровней ручные (см. HAND_LEVELS): самый сложный из них
+    // требует 6 ходов. Генератор продолжает нумерацию с 6-го уровня, поэтому
+    // стартуем не ниже этой планки.
+    let prevPar = 6;
+
     for (const profile of PROFILES) {
       let runIndex = 0;
       let queue: GeneratedLevel[] = [];
@@ -741,66 +934,94 @@ describe('генератор уровней', () => {
         const indexInTier = id - profile.from;
         const span = Math.max(1, profile.to - profile.from);
         const progress = indexInTier / span;
-        const targetPar = Math.round(profile.par[0] + progress * (profile.par[1] - profile.par[0]));
+        const rampPar = Math.round(profile.par[0] + progress * (profile.par[1] - profile.par[0]));
+        // Сквозной рост: на стыке ступеней цель не сбрасывается вниз.
+        const targetPar = Math.max(rampPar, prevPar);
         const carCount = Math.round(
           profile.cars[0] + progress * (profile.cars[1] - profile.cars[0]),
         );
 
-        // Сложность уровня растёт внутри тарифа: чем ближе к концу тарифа,
-        // тем больше ходов требуется. Пробуем два источника кандидатов —
-        // случайные расстановки и состояния из обратного обхода.
-        const tierLow = profile.par[0];
-        const tierHigh = profile.par[1] + 4;
-        const distance = (candidate: GeneratedLevel): number => Math.abs(candidate.par - targetPar);
+        // Внутри ступени сложность растёт: ближе к концу тарифа нужно больше
+        // ходов. Пол сложности (tierLow) не опускаем — иначе снова появятся
+        // уровни «в один ход», из-за которых игра казалась лёгкой.
+        const tierLow = Math.max(profile.par[0], prevPar);
+        const tierHigh = Math.max(profile.par[1] + 3, prevPar + 4);
         let level: GeneratedLevel | null = null;
-        let fallback: GeneratedLevel | null = null;
 
-        // Ближайший к желаемому пару уровень из всего, что удалось собрать.
         const consider = (candidate: GeneratedLevel | null): void => {
           if (!candidate) return;
           if (candidate.par < 2 || candidate.par > tierHigh) return;
-          if (!fallback || distance(candidate) < distance(fallback)) fallback = candidate;
+          queue.push(candidate);
         };
+
+        // Выбор из очереди: ближе к целевому пару и «интереснее» по структуре.
+        const pickScore = (candidate: GeneratedLevel): number =>
+          (candidate.score ?? 0) - 2.2 * Math.abs(candidate.par - targetPar);
 
         const takeFromQueue = (floor: number): void => {
-          queue.sort((a, b) => distance(a) - distance(b));
-          const index = queue.findIndex((candidate) => candidate.par >= floor);
-          if (index >= 0) {
-            level = queue[index];
-            queue.splice(index, 1);
+          let bestIndex = -1;
+          let bestScore = -Infinity;
+          for (let index = 0; index < queue.length; index += 1) {
+            const candidate = queue[index];
+            if (candidate.par < floor) continue;
+            const value = pickScore(candidate);
+            if (value > bestScore) {
+              bestScore = value;
+              bestIndex = index;
+            }
+          }
+          if (bestIndex >= 0) {
+            level = queue[bestIndex];
+            queue.splice(bestIndex, 1);
           }
         };
 
-        takeFromQueue(Math.max(2, tierLow));
+        takeFromQueue(tierLow);
 
-        // Порог сложности опускается, если в диапазоне тарифа ничего не нашлось:
-        // уровень обязан быть сгенерирован, но остаётся настолько сложным,
-        // насколько позволила конкретная расстановка.
-        const rounds = [Math.max(2, tierLow), Math.max(2, tierLow - 3), 2];
-        const perRound = Math.max(4, Math.ceil((profile.tries ?? 30) / rounds.length));
-        for (const floor of rounds) {
-          if (level) break;
-          for (let attempt = 0; attempt < perRound && !level; attempt += 1) {
-            const random = mulberry32(0x9e3779b9 ^ (id * 2654435761) ^ (attempt * 40503));
+        // Основной бюджет: держим пол сложности строго. Именно здесь раньше
+        // уровни «съезжали» в лёгкие — генератор сдавался после десятка попыток.
+        const budget = profile.tries ?? 60;
+        for (let attempt = 0; attempt < budget && !level; attempt += 1) {
+          const random = mulberry32(0x9e3779b9 ^ (id * 2654435761) ^ (attempt * 40503));
 
-            runIndex += 1;
-            const run = makeRun(profile, random, carCount, runIndex);
-            if (!run) continue;
+          runIndex += 1;
+          const run = makeRun(profile, random, carCount, runIndex, Math.max(tierLow, targetPar));
+          if (!run) continue;
 
-            const collected = collectLevels(
-              run,
-              [Math.max(2, targetPar - 6), tierHigh],
-              profile.perRun,
-              random,
-              profile.parCap,
-            );
-            collected.forEach(consider);
-            queue = [...queue, ...collected].slice(0, 60);
-            takeFromQueue(floor);
-          }
+          const collected = collectLevels(
+            run,
+            [Math.max(4, targetPar - 7, tierLow), tierHigh],
+            profile.perRun,
+            random,
+            profile.parCap,
+          );
+          collected.forEach(consider);
+          queue = queue.slice(-600);
+          takeFromQueue(tierLow);
         }
 
-        if (!level) level = fallback;
+        // Запасной спуск — только если строгий бюджет исчерпан.
+        for (let attempt = 0; attempt < Math.ceil(budget / 3) && !level; attempt += 1) {
+          const random = mulberry32(0x51ed270b ^ (id * 2654435761) ^ (attempt * 40503));
+          runIndex += 1;
+          const run = makeRun(profile, random, carCount, runIndex, tierLow);
+          if (!run) continue;
+          const collected = collectLevels(
+            run,
+            [Math.max(4, tierLow - 2), tierHigh],
+            profile.perRun,
+            random,
+            profile.parCap,
+          );
+          collected.forEach(consider);
+          queue = queue.slice(-600);
+          takeFromQueue(Math.max(4, tierLow));
+        }
+
+        if (!level) {
+          // Крайний случай: берём лучший из очереди без ограничения по пару.
+          takeFromQueue(2);
+        }
 
         if (!level) {
           console.log('rejections for level', id, JSON.stringify(REJECT));
@@ -823,6 +1044,7 @@ describe('генератор уровней', () => {
           rows: value.rows,
         };
         writeCache(cache);
+        prevPar = value.par;
         generated.push(def);
         stats.push(
           `#${String(id).padStart(3)} ${profile.tier.padEnd(8)} ${value.cols}x${value.rows} par=${String(value.par).padStart(2)}${value.exact ? '' : '~'} машин=${value.cars.length}${value.lowerBound !== undefined ? ` (нижняя оценка ${value.lowerBound})` : ''}`,

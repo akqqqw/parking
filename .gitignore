@@ -8,3 +8,4 @@ coverage/
 tools/.cache/
 .DS_Store
 *.log
+tsconfig.tsbuildinfo

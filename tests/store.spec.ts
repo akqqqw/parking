@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore, applyMoves } from '@/state/gameStore';
+import { enumerateMoves } from '@/game/core/rules';
 import { coinsForResult, starsForMoves } from '@/state/progressStore';
 import { getLevel } from '@/game/levels/catalog';
 import { isSolved, solve } from '@/game/core';
 
 const level = getLevel(1)!;
+/** Первый ход оптимального решения — тесты не зависят от конкретной карты. */
+const solution = solve(level.cars, level.cols, level.rows, level.exitRow)!;
+const firstMove = solution.moves[0];
 
 describe('игровая сессия', () => {
   beforeEach(() => {
@@ -19,43 +23,39 @@ describe('игровая сессия', () => {
   });
 
   it('ход применяется и увеличивает счётчик', () => {
-    useGameStore.getState().registerMove({ carId: 'a', axis: 'y', from: 0, to: 3 });
+    useGameStore.getState().registerMove(firstMove);
     const state = useGameStore.getState();
     expect(state.moves).toHaveLength(1);
-    expect(state.cars.find((car) => car.id === 'a')?.y).toBe(3);
+    expect(state.moves[0]).toEqual(firstMove);
   });
 
   it('отмена возвращает машину на место', () => {
     const store = useGameStore.getState();
-    store.registerMove({ carId: 'a', axis: 'y', from: 0, to: 3 });
+    store.registerMove(firstMove);
     useGameStore.getState().undo();
     const state = useGameStore.getState();
     expect(state.moves).toHaveLength(0);
-    expect(state.cars.find((car) => car.id === 'a')?.y).toBe(0);
     expect(state.cars).toEqual(level.cars);
   });
 
   it('прохождение уровня переводит сессию в статус «победа»', () => {
-    const store = useGameStore.getState();
-    store.registerMove({ carId: 'a', axis: 'y', from: 0, to: 3 });
-    useGameStore.getState().registerMove({ carId: 'target', axis: 'x', from: 1, to: 4 });
+    for (const move of solution.moves) useGameStore.getState().registerMove(move);
     const state = useGameStore.getState();
     expect(state.status).toBe('won');
     expect(isSolved(level, state.cars)).toBe(true);
-    expect(state.moves).toHaveLength(2);
+    expect(state.moves).toHaveLength(solution.steps);
   });
 
   it('после победы ходы не принимаются, а отмена недоступна', () => {
-    const store = useGameStore.getState();
-    store.registerMove({ carId: 'a', axis: 'y', from: 0, to: 3 });
-    useGameStore.getState().registerMove({ carId: 'target', axis: 'x', from: 1, to: 4 });
+    for (const move of solution.moves) useGameStore.getState().registerMove(move);
     expect(useGameStore.getState().canUndo()).toBe(false);
-    useGameStore.getState().registerMove({ carId: 'target', axis: 'x', from: 4, to: 3 });
-    expect(useGameStore.getState().moves).toHaveLength(2);
+    const extra = enumerateMoves(useGameStore.getState().cars, level.cols, level.rows)[0];
+    if (extra) useGameStore.getState().registerMove(extra);
+    expect(useGameStore.getState().moves).toHaveLength(solution.steps);
   });
 
   it('перезапуск возвращает уровень в исходное состояние', () => {
-    useGameStore.getState().registerMove({ carId: 'a', axis: 'y', from: 0, to: 3 });
+    useGameStore.getState().registerMove(firstMove);
     useGameStore.getState().restart();
     const state = useGameStore.getState();
     expect(state.moves).toHaveLength(0);
@@ -65,17 +65,12 @@ describe('игровая сессия', () => {
 
   it('подсказка возвращает первый ход решения', () => {
     const payload = useGameStore.getState().showHint();
-    const solution = solve(level.cars, level.cols, level.rows, level.exitRow)!;
-    expect(payload?.carId).toBe(solution.moves[0].carId);
-    expect(payload?.to).toBe(solution.moves[0].to);
+    expect(payload?.carId).toBe(firstMove.carId);
+    expect(payload?.to).toBe(firstMove.to);
   });
 
   it('applyMoves воспроизводит расстановку из ходов', () => {
-    const moves = [
-      { carId: 'a', axis: 'y' as const, from: 0, to: 3 },
-      { carId: 'target', axis: 'x' as const, from: 1, to: 4 },
-    ];
-    const cars = applyMoves(level, moves);
+    const cars = applyMoves(level, solution.moves);
     expect(isSolved(level, cars)).toBe(true);
   });
 });
