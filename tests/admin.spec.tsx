@@ -103,6 +103,20 @@ describe('скрытая админ-панель', () => {
     expect(document.querySelectorAll('.admin__repeat-row').length).toBeGreaterThan(0);
   });
 
+  it('галерея открывает нужный уровень по клику', () => {
+    act(() => useUiStore.getState().go('admin'));
+    render(<App />);
+
+    const toggle = screen.getByRole('button', { name: /Галерея каталога/ });
+    fireEvent.click(toggle);
+    expect(document.querySelectorAll('.admin__thumb').length).toBe(100);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть уровень 42' }));
+    const select = screen.getByLabelText('Уровень') as HTMLSelectElement;
+    expect(select.value).toBe('42');
+    expect(document.querySelectorAll('.admin__thumb--active').length).toBe(1);
+  });
+
   it('отменяет и возвращает правку', () => {
     mockBoardRect();
     act(() => useUiStore.getState().go('admin'));

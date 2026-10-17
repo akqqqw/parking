@@ -58,7 +58,7 @@ import { carPos } from '@/game/core/rules';
 import { clearSolutionCache } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
 import { useUiStore } from '@/state/uiStore';
-import type { CarKind } from '@/game/types';
+import type { CarKind, Level } from '@/game/types';
 
 const COLOR_KEYS = CAR_COLOR_KEYS;
 const PALETTE = CAR_COLOR_SKINS[0].colors;
@@ -106,6 +106,56 @@ function kindFor(length: number, index: number): CarKind {
   return KINDS[index % KINDS.length];
 }
 
+/** Мини-план уровня: машины сеткой, красная — цель, справа проём выезда. */
+function LevelThumb({
+  level,
+  active,
+  onClick,
+}: {
+  level: Level;
+  active: boolean;
+  onClick: () => void;
+}): JSX.Element {
+  const boardStyle = {
+    '--cols': level.cols,
+    '--rows': level.rows,
+  } as CSSProperties;
+
+  return (
+    <button
+      type="button"
+      className={['admin__thumb', active ? 'admin__thumb--active' : ''].join(' ')}
+      aria-label={`Открыть уровень ${level.id}`}
+      aria-pressed={active}
+      title={`№${level.id} · ${level.name} · пар ${level.par ?? '—'}`}
+      onClick={onClick}
+    >
+      <span className="admin__thumb-frame">
+        <span className="admin__thumb-board" style={boardStyle}>
+          {level.cars.map((car) => (
+            <i
+              key={car.id}
+              className={['admin__thumb-car', car.target ? 'admin__thumb-car--target' : '']
+                .filter(Boolean)
+                .join(' ')}
+              style={{
+                gridColumn: `${car.x + 1} / span ${car.orientation === 'h' ? car.length : 1}`,
+                gridRow: `${car.y + 1} / span ${car.orientation === 'v' ? car.length : 1}`,
+                background: car.target ? undefined : toCss(PALETTE[car.color]),
+              }}
+            />
+          ))}
+        </span>
+        <span
+          className="admin__thumb-exit"
+          style={{ top: `${((level.exitRow + 0.5) / level.rows) * 100}%` }}
+        />
+      </span>
+      <span className="admin__thumb-id">{level.id}</span>
+    </button>
+  );
+}
+
 export function AdminScreen(): JSX.Element {
   const go = useUiStore((state) => state.go);
   const openLevel = useUiStore((state) => state.openLevel);
@@ -130,6 +180,7 @@ export function AdminScreen(): JSX.Element {
   const [importText, setImportText] = useState('');
   const [projectState, setProjectState] = useState<ProjectState>('idle');
   const [showRepeats, setShowRepeats] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const [history, setHistory] = useState<HistoryState>({ past: [], future: [] });
 
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -868,6 +919,29 @@ export function AdminScreen(): JSX.Element {
           </div>
         </div>
       </div>
+
+      <section className="admin__gallery">
+        <button
+          type="button"
+          className="admin__tool"
+          aria-expanded={showGallery}
+          onClick={() => setShowGallery((value) => !value)}
+        >
+          {showGallery ? 'Скрыть галерею' : `Галерея каталога (${levels.length})`}
+        </button>
+        {showGallery ? (
+          <div className="admin__gallery-grid">
+            {levels.map((level) => (
+              <LevelThumb
+                key={level.id}
+                level={level}
+                active={level.id === levelId}
+                onClick={() => requestLoad(level.id)}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       {modal === 'export' ? (
         <Modal title="Экспорт правок" onClose={() => setModal('none')}>

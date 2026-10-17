@@ -388,6 +388,85 @@ button {
   gap: 2px;
 }
 
+/* -------------------------------------------------- галерея админки ------- */
+
+.admin__gallery {
+  margin: 8px 16px 24px;
+}
+
+.admin__gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin__thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 4px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.admin__thumb--active {
+  border-color: var(--primary);
+  background: rgba(75, 212, 139, 0.14);
+}
+
+.admin__thumb-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding-right: 5px;
+}
+
+.admin__thumb-board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  gap: 1px;
+  padding: 2px;
+  aspect-ratio: var(--cols) / var(--rows);
+  width: 100%;
+  border-radius: 5px;
+  background: #2f333a;
+}
+
+.admin__thumb-car {
+  border-radius: 2px;
+  min-height: 3px;
+}
+
+.admin__thumb-car--target {
+  background: #e23b3b;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.admin__thumb-exit {
+  position: absolute;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: #ffd257;
+  transform: translateY(-50%);
+}
+
+.admin__thumb-id {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__thumb--active .admin__thumb-id {
+  color: var(--primary);
+}
+
 /* ------------------------------------------------------- выбор уровня ----- */
 
 .levels__scroll,
