@@ -32,7 +32,8 @@ export function GameScreen(): JSX.Element {
   // Пока решатель ищет ход, кнопка подсказки показывает «думаю…»:
   // на самых плотных уровнях поиск занимает до ~0.8 с.
   const [thinking, setThinking] = useState(false);
-  const paused = dialog === 'pause';
+  // Урок тоже ставит парковку на паузу: сцена не должна жить под модалкой.
+  const paused = dialog === 'pause' || dialog === 'tutorial';
   const par = useMemo(() => (level ? getPar(level) : 0), [level]);
   const best = useProgressStore((state) =>
     level ? state.levels[String(level.id)]?.bestMoves : undefined,
