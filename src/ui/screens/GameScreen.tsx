@@ -1,11 +1,11 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/Button';
-import { BackIcon, BulbIcon, PauseIcon, RestartIcon, UndoIcon } from '../components/Icons';
+import { BackIcon, BulbIcon, PauseIcon, RestartIcon, StarIcon, UndoIcon } from '../components/Icons';
 import { audio } from '@/services/audio';
 import { bridge } from '@/game/bridge';
 import { getPar } from '@/game/levels/catalog';
 import { useGameStore } from '@/state/gameStore';
-import { useProgressStore } from '@/state/progressStore';
+import { starsForMoves, useProgressStore } from '@/state/progressStore';
 import { useUiStore } from '@/state/uiStore';
 import { submitLeaderboardScore } from '@/services/yandex';
 import { WinDialog } from './dialogs/WinDialog';
@@ -46,6 +46,21 @@ export function GameScreen(): JSX.Element {
       useUiStore.getState().openDialog('tutorial');
     }
   }, [levelId, tutorialSeen, status]);
+
+  // Уход со вкладки ставит игру на паузу: иначе сцена оставалась
+  // приостановленной и после возврата перетаскивание не работало.
+  useEffect(() => {
+    const onVisibility = (): void => {
+      if (!document.hidden) return;
+      const ui = useUiStore.getState();
+      const game = useGameStore.getState();
+      if (ui.screen === 'game' && ui.dialog === 'none' && game.status === 'playing') {
+        ui.openDialog('pause');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   // Пауза сцены и звука.
   useEffect(() => {
@@ -178,6 +193,15 @@ export function GameScreen(): JSX.Element {
           Ходы: <b>{moves.length}</b>
         </span>
         <span className="stat stat--muted">Пар: {par}</span>
+        <span
+          className="stat stat--stars"
+          title={`3★ — до ${par} ходов, 2★ — до ${Math.ceil(par * 1.4)}`}
+          aria-label={`Текущая награда: ${starsForMoves(par, moves.length)} из 3 звёзд`}
+        >
+          {[0, 1, 2].map((index) => (
+            <StarIcon key={index} size={14} filled={index < starsForMoves(par, moves.length)} />
+          ))}
+        </span>
         {best !== undefined ? <span className="stat stat--muted">Рекорд: {best}</span> : null}
       </div>
 

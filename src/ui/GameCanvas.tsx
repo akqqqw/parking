@@ -51,16 +51,8 @@ export default function GameCanvas(): JSX.Element {
     };
     const offReady = bridge.on('scene:ready', applyTheme);
 
-    const onVisibility = (): void => {
-      if (document.hidden) {
-        bridge.emit('game:paused', { paused: true });
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
     return () => {
       offReady();
-      document.removeEventListener('visibilitychange', onVisibility);
       game.destroy(true);
     };
   }, []);

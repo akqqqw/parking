@@ -183,6 +183,32 @@ describe('интерфейс игры', () => {
     expect(useUiStore.getState().dialog).toBe('pause');
   });
 
+  it('HUD показывает, сколько звёзд ещё можно получить', () => {
+    const level = getLevel(2)!;
+    useGameStore.getState().startLevel(level);
+    useUiStore.setState({ screen: 'game', dialog: 'none' });
+    render(<App />);
+    const stars = document.querySelector('.stat--stars');
+    expect(stars).toBeTruthy();
+    expect(stars!.querySelectorAll('svg')).toHaveLength(3);
+    expect(stars!.getAttribute('aria-label')).toContain('3 из 3');
+  });
+
+  it('уход со вкладки ставит игру на паузу', () => {
+    useGameStore.getState().startLevel(getLevel(4)!);
+    useUiStore.setState({ screen: 'game', dialog: 'none' });
+    render(<App />);
+    expect(useUiStore.getState().dialog).toBe('none');
+
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    fireEvent(document, new Event('visibilitychange'));
+    expect(useUiStore.getState().dialog).toBe('pause');
+
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    fireEvent.click(screen.getByText('Продолжить'));
+    expect(useUiStore.getState().dialog).toBe('none');
+  });
+
   it('магазин покупает подсказки за монеты', () => {
     useProgressStore.setState({ coins: 500, hints: 0 });
     useUiStore.setState({ screen: 'shop' });
