@@ -135,6 +135,23 @@ export function BackIcon({ size = 22, className }: IconProps): JSX.Element {
   );
 }
 
+export function FlameIcon({ size = 18, className }: IconProps): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        d="M12 2.8c2.9 3.4 5.9 6.3 5.9 10.1a5.9 5.9 0 11-11.8 0c0-2 .9-3.7 2.3-5.4.3 1.5 1 2.5 2 3 .6-2.9.7-5.3 1.6-7.7z"
+        fill={className?.includes('muted') ? 'currentColor' : '#ff8a3d'}
+        stroke={className?.includes('muted') ? 'none' : '#d05c14'}
+        strokeWidth="0.8"
+      />
+      <path
+        d="M12 12.4c1.3 1.4 2 2.4 2 3.6a2 2 0 11-4 0c0-1.2.8-2.3 2-3.6z"
+        fill="#ffd257"
+      />
+    </svg>
+  );
+}
+
 export function LockIcon({ size = 18, className }: IconProps): JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">

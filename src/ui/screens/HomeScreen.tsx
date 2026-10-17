@@ -2,10 +2,11 @@ import { useRef } from 'react';
 import { Button } from '../components/Button';
 import { CoinBadge } from '../components/Badges';
 import { CarIllustration } from '../components/CarIllustration';
-import { CartIcon, PlayIcon, SettingsIcon, StarIcon } from '../components/Icons';
+import { CartIcon, FlameIcon, PlayIcon, SettingsIcon, StarIcon } from '../components/Icons';
 import { nextLevelToPlay, useProgressStore } from '@/state/progressStore';
 import { useUiStore } from '@/state/uiStore';
-import { getLevelCount } from '@/game/levels/catalog';
+import { getLevel, getLevelCount } from '@/game/levels/catalog';
+import { dailyLevelId, dailyReward, dateKey, isYesterday } from '@/game/daily';
 
 export function HomeScreen(): JSX.Element {
   const go = useUiStore((state) => state.go);
@@ -32,6 +33,15 @@ export function HomeScreen(): JSX.Element {
 
   const levelCount = getLevelCount();
   const maxStars = levelCount * 3;
+
+  // Задача дня: уровень выбирается от локальной даты, бонус платится один раз.
+  const today = dateKey();
+  const dailyId = dailyLevelId(today, levelCount);
+  const dailyLevel = getLevel(dailyId);
+  const daily = useProgressStore((state) => state.daily);
+  const dailyStreak = useProgressStore((state) => state.dailyStreak);
+  const dailyDone = daily?.date === today && daily.levelId === dailyId;
+  const nextStreak = daily && isYesterday(daily.date, today) ? dailyStreak + 1 : 1;
 
   return (
     <div className="screen screen--home">
@@ -60,6 +70,39 @@ export function HomeScreen(): JSX.Element {
         <div className="home__illustration">
           <CarIllustration width={220} height={110} />
         </div>
+      </div>
+
+      <div className="home__daily">
+        <div className="home__daily-icon" aria-hidden="true">
+          <FlameIcon size={26} />
+        </div>
+        <div className="home__daily-text">
+          <span className="home__daily-label">Задача дня</span>
+          <span className="home__daily-name">
+            Уровень {dailyId}
+            {dailyLevel ? ` · ${dailyLevel.name}` : ''}
+          </span>
+          <span className="home__daily-meta">
+            {dailyDone ? (
+              <>
+                Пройдено сегодня · {daily.stars}
+                <StarIcon size={12} filled /> · серия {dailyStreak}
+              </>
+            ) : (
+              <>
+                +{dailyReward(nextStreak)} монет · серия {nextStreak}
+              </>
+            )}
+          </span>
+        </div>
+        <Button
+          variant={dailyDone ? 'ghost' : 'primary'}
+          size="sm"
+          aria-label={`Задача дня: открыть уровень ${dailyId}`}
+          onClick={() => openLevel(dailyId)}
+        >
+          {dailyDone ? 'Ещё раз' : 'Открыть'}
+        </Button>
       </div>
 
       <div className="home__actions">

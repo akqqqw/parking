@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
-import { StarIcon } from '../../components/Icons';
+import { FlameIcon, StarIcon } from '../../components/Icons';
 import { CoinsIcon } from '../../components/Icons';
 import { audio } from '@/services/audio';
 import { getLevel, getLevelCount } from '@/game/levels/catalog';
@@ -77,6 +77,17 @@ export function WinDialog(): JSX.Element {
             <CoinsIcon size={18} /> +{result.coins}
           </b>
         </div>
+        {result.dailyBonus > 0 ? (
+          <div className="win__row win__row--daily">
+            <span>
+              <FlameIcon size={16} /> Задача дня
+            </span>
+            <b>
+              +{result.dailyBonus}
+              <span className="win__par"> · серия {result.dailyStreak}</span>
+            </b>
+          </div>
+        ) : null}
       </div>
 
       {better && shownStars === stars ? (

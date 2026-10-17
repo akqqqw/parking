@@ -55,6 +55,21 @@ describe('интерфейс игры', () => {
     expect(document.querySelectorAll('.level-card--locked').length).toBe(99);
   });
 
+  it('на главной есть задача дня и она ведёт на уровень', () => {
+    render(<App />);
+    expect(screen.getByText('Задача дня')).toBeTruthy();
+    const card = document.querySelector('.home__daily') as HTMLElement;
+    expect(card).toBeTruthy();
+    const play = Array.from(card.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Открыть',
+    );
+    expect(play).toBeTruthy();
+    fireEvent.click(play!);
+    expect(useUiStore.getState().screen).toBe('game');
+    const level = useGameStore.getState().level!;
+    expect(level.id).toBeGreaterThanOrEqual(6);
+  });
+
   it('фильтр скрывает пройденные уровни', () => {
     const level = getLevel(1)!;
     useProgressStore.getState().completeLevel(level, getPar(level));

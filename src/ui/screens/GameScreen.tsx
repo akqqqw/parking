@@ -71,6 +71,9 @@ export function GameScreen(): JSX.Element {
         coins: result.coins,
         isNew: result.isNew,
         bestMoves: result.bestMoves,
+        dailyBonus: result.dailyBonus,
+        dailyDone: result.dailyDone,
+        dailyStreak: result.dailyStreak,
       });
     });
     return off;

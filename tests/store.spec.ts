@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore, applyMoves } from '@/state/gameStore';
 import { enumerateMoves } from '@/game/core/rules';
-import { coinsForResult, starsForMoves } from '@/state/progressStore';
+import { coinsForResult, starsForMoves, useProgressStore } from '@/state/progressStore';
+import { addDays, dailyLevelId, dateKey, isYesterday } from '@/game/daily';
+import { getLevelCount } from '@/game/levels/catalog';
 import { getLevel } from '@/game/levels/catalog';
 import { isSolved, solve } from '@/game/core';
 
@@ -95,5 +97,67 @@ describe('звёзды и монеты', () => {
     const slow = coinsForResult(5, 14, 1, true);
     expect(perfect).toBeGreaterThan(slow);
     expect(slow).toBeGreaterThan(0);
+  });
+});
+
+describe('задача дня', () => {
+  const today = dateKey();
+  const dailyId = dailyLevelId(today, getLevelCount());
+
+  beforeEach(() => {
+    useProgressStore.getState().hydrate();
+  });
+
+  it('даёт бонус за первое прохождение дневного уровня и только один раз', () => {
+    const level = getLevel(dailyId)!;
+    const before = useProgressStore.getState().coins;
+    const first = useProgressStore.getState().completeLevel(level, level.par ?? 10);
+
+    expect(first.dailyDone).toBe(true);
+    expect(first.dailyBonus).toBeGreaterThan(0);
+    expect(useProgressStore.getState().daily?.levelId).toBe(dailyId);
+    expect(useProgressStore.getState().daily?.date).toBe(today);
+
+    const coinsAfterFirst = useProgressStore.getState().coins;
+    expect(coinsAfterFirst - before).toBeGreaterThan(coinsForResult(level.par ?? 10, level.par ?? 10, 3, true));
+
+    const second = useProgressStore.getState().completeLevel(level, (level.par ?? 10) + 1);
+    expect(second.dailyDone).toBe(false);
+    expect(second.dailyBonus).toBe(0);
+    expect(useProgressStore.getState().coins).toBe(coinsAfterFirst + second.coins);
+  });
+
+  it('обычный уровень бонус не начисляет', () => {
+    const other = getLevel(dailyId === 50 ? 51 : 50)!;
+    const result = useProgressStore.getState().completeLevel(other, other.par ?? 10);
+    expect(result.dailyDone).toBe(false);
+    expect(result.dailyBonus).toBe(0);
+  });
+
+  it('продлевает серию, если вчерашняя задача была решена', () => {
+    const yesterday = addDays(today, -1);
+    expect(isYesterday(yesterday, today)).toBe(true);
+    useProgressStore.setState({
+      daily: { date: yesterday, levelId: dailyLevelId(yesterday, getLevelCount()), moves: 10, stars: 2 },
+      dailyStreak: 3,
+    });
+
+    const level = getLevel(dailyId)!;
+    const result = useProgressStore.getState().completeLevel(level, level.par ?? 10);
+    expect(result.dailyStreak).toBe(4);
+    // 40 базовых + 10 за каждый из трёх прошедших дней серии.
+    expect(result.dailyBonus).toBe(70);
+  });
+
+  it('обнуляет серию после пропущенного дня', () => {
+    useProgressStore.setState({
+      daily: { date: addDays(today, -3), levelId: 20, moves: 10, stars: 2 },
+      dailyStreak: 7,
+    });
+
+    const level = getLevel(dailyId)!;
+    const result = useProgressStore.getState().completeLevel(level, level.par ?? 10);
+    expect(result.dailyStreak).toBe(1);
+    expect(result.dailyBonus).toBe(40);
   });
 });

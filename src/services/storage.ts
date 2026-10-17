@@ -15,6 +15,14 @@ export interface LevelProgress {
   bestMoves: number;
 }
 
+export interface DailyProgress {
+  /** Дата засчитанной задачи (`YYYY-MM-DD`). */
+  date: string;
+  levelId: number;
+  moves: number;
+  stars: number;
+}
+
 export interface ProgressSnapshot {
   /** Прогресс по уровням: `id` → звёзды и лучший результат. */
   levels: Record<string, LevelProgress>;
@@ -28,6 +36,10 @@ export interface ProgressSnapshot {
   vibrations: boolean;
   /** Показан ли новичку короткий урок на первом уровне. */
   tutorialSeen: boolean;
+  /** Последняя засчитанная задача дня. */
+  daily: DailyProgress | null;
+  /** Сколько дней подряд решается задача дня. */
+  dailyStreak: number;
   currentLevel: number;
   totalMoves: number;
   levelsCompleted: number;
@@ -55,10 +67,24 @@ export function defaultProgress(): ProgressSnapshot {
     musicEnabled: true,
     vibrations: true,
     tutorialSeen: false,
+    daily: null,
+    dailyStreak: 0,
     currentLevel: 1,
     totalMoves: 0,
     levelsCompleted: 0,
     version: SAVE_VERSION,
+  };
+}
+
+function mergeDaily(raw: unknown): DailyProgress | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const data = raw as Partial<DailyProgress>;
+  if (typeof data.date !== 'string' || !Number.isFinite(data.levelId)) return null;
+  return {
+    date: data.date,
+    levelId: Math.max(1, Math.round(data.levelId as number)),
+    moves: Math.max(0, Math.round(Number(data.moves) || 0)),
+    stars: Math.min(3, Math.max(0, Math.round(Number(data.stars) || 0))),
   };
 }
 
@@ -73,9 +99,14 @@ function mergeProgress(raw: unknown): ProgressSnapshot {
     coins: Number.isFinite(data.coins) ? Math.max(0, Math.round(data.coins as number)) : base.coins,
     hints: Number.isFinite(data.hints) ? Math.max(0, Math.round(data.hints as number)) : base.hints,
     undos: Number.isFinite(data.undos) ? Math.max(0, Math.round(data.undos as number)) : base.undos,
+    daily: mergeDaily(data.daily),
+    dailyStreak: Number.isFinite(data.dailyStreak)
+      ? Math.max(0, Math.round(data.dailyStreak as number))
+      : base.dailyStreak,
     version: SAVE_VERSION,
   };
 }
+
 
 /**
  * Минимальный структурный тип обёртки idb: библиотека подгружается динамически,

@@ -15,6 +15,10 @@ export interface WinResult {
   coins: number;
   isNew: boolean;
   bestMoves: number;
+  /** Бонус и серия за задачу дня (0 и текущая серия, если не дневной). */
+  dailyBonus: number;
+  dailyDone: boolean;
+  dailyStreak: number;
 }
 
 export interface UiState {

@@ -11,10 +11,12 @@ import {
   loadProgress,
   saveProgress,
   clearProgress,
+  type DailyProgress,
   type LevelProgress,
   type ProgressSnapshot,
 } from '@/services/storage';
-import { getLevel, getPar } from '@/game/levels/catalog';
+import { getLevel, getLevelCount, getPar } from '@/game/levels/catalog';
+import { dailyLevelId, dailyReward, dateKey, isYesterday } from '@/game/daily';
 import type { Level } from '@/game/types';
 
 export interface ShopItem {
@@ -50,6 +52,8 @@ export interface ProgressState {
   musicEnabled: boolean;
   vibrations: boolean;
   tutorialSeen: boolean;
+  daily: DailyProgress | null;
+  dailyStreak: number;
   currentLevel: number;
   totalMoves: number;
   levelsCompleted: number;
@@ -59,7 +63,16 @@ export interface ProgressState {
   completeLevel: (
     level: Level,
     moves: number,
-  ) => { stars: number; coins: number; isNew: boolean; bestMoves: number };
+  ) => {
+    stars: number;
+    coins: number;
+    isNew: boolean;
+    bestMoves: number;
+    /** Бонус за задачу дня (0, если уровень не дневной или уже засчитан). */
+    dailyBonus: number;
+    dailyDone: boolean;
+    dailyStreak: number;
+  };
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
   purchase: (item: ShopItem) => boolean;
@@ -110,6 +123,8 @@ function snapshotFromState(state: ProgressState): ProgressSnapshot {
     musicEnabled: state.musicEnabled,
     vibrations: state.vibrations,
     tutorialSeen: state.tutorialSeen,
+    daily: state.daily,
+    dailyStreak: state.dailyStreak,
     currentLevel: state.currentLevel,
     totalMoves: state.totalMoves,
     levelsCompleted: state.levelsCompleted,
@@ -139,6 +154,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   musicEnabled: true,
   vibrations: true,
   tutorialSeen: false,
+  daily: null,
+  dailyStreak: 0,
   currentLevel: 1,
   totalMoves: 0,
   levelsCompleted: 0,
@@ -160,6 +177,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         musicEnabled: data.musicEnabled,
         vibrations: data.vibrations,
         tutorialSeen: data.tutorialSeen ?? false,
+        daily: data.daily ?? null,
+        dailyStreak: data.dailyStreak ?? 0,
         currentLevel: data.currentLevel,
         totalMoves: data.totalMoves,
         levelsCompleted: data.levelsCompleted,
@@ -174,16 +193,35 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     const isNew = !previous;
     const bestMoves = previous ? Math.min(previous.bestMoves, moves) : moves;
     const bestStars = Math.max(previous?.stars ?? 0, stars);
-    const coins = coinsForResult(par, moves, stars, isNew);
+    const baseCoins = coinsForResult(par, moves, stars, isNew);
+
+    // Задача дня: бонус платится один раз за календарный день, серия
+    // продлевается, если вчерашняя задача тоже была решена.
+    const today = dateKey();
+    const current = get();
+    const isDaily = level.id === dailyLevelId(today, getLevelCount());
+    const dailyDone = isDaily && current.daily?.date !== today;
+    const dailyStreak = dailyDone
+      ? current.daily && isYesterday(current.daily.date, today)
+        ? current.dailyStreak + 1
+        : 1
+      : current.dailyStreak;
+    const dailyBonus = dailyDone ? dailyReward(dailyStreak) : 0;
+    const coins = baseCoins + dailyBonus;
+
     set((state) => ({
       levels: { ...state.levels, [key]: { stars: bestStars, bestMoves } },
       coins: state.coins + coins,
       levelsCompleted: isNew ? state.levelsCompleted + 1 : state.levelsCompleted,
       totalMoves: state.totalMoves + moves,
       currentLevel: Math.max(state.currentLevel, level.id),
+      daily: dailyDone
+        ? { date: today, levelId: level.id, moves, stars }
+        : state.daily,
+      dailyStreak,
     }));
     scheduleSave(get());
-    return { stars, coins, isNew, bestMoves };
+    return { stars, coins, isNew, bestMoves, dailyBonus, dailyDone, dailyStreak };
   },
 
   addCoins: (amount) => {
@@ -313,6 +351,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       totalMoves: 0,
       levelsCompleted: 0,
       tutorialSeen: false,
+      daily: null,
+      dailyStreak: 0,
       ownedSkins: [],
       parkingSkin: defaultProgress().parkingSkin,
       carSkin: defaultProgress().carSkin,
