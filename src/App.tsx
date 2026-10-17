@@ -16,6 +16,7 @@ export function App(): JSX.Element {
   const soundEnabled = useProgressStore((state) => state.soundEnabled);
   const musicEnabled = useProgressStore((state) => state.musicEnabled);
   const vibrations = useProgressStore((state) => state.vibrations);
+  const volume = useProgressStore((state) => state.volume);
 
   useEffect(() => {
     audio.setEnabled(soundEnabled);
@@ -24,6 +25,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     haptics.setEnabled(vibrations);
   }, [vibrations]);
+
+  useEffect(() => {
+    audio.setVolume(volume);
+  }, [volume]);
 
   // Скрытая админ-панель: адрес `?admin` / `#admin` или Ctrl+Shift+A.
   // Обычным игрокам она не видна и нигде в интерфейсе не упоминается.

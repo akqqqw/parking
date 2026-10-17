@@ -51,6 +51,7 @@ export interface ProgressState {
   soundEnabled: boolean;
   musicEnabled: boolean;
   vibrations: boolean;
+  volume: number;
   tutorialSeen: boolean;
   daily: DailyProgress | null;
   dailyStreak: number;
@@ -82,6 +83,7 @@ export interface ProgressState {
   addHints: (count: number) => void;
   addUndos: (count: number) => void;
   setSetting: (key: 'soundEnabled' | 'musicEnabled' | 'vibrations', value: boolean) => void;
+  setVolume: (value: number) => void;
   /** Закрыть обучение на первом уровне (больше не показывается). */
   dismissTutorial: () => void;
   /** Показать обучение снова — например, из паузы. */
@@ -122,6 +124,7 @@ function snapshotFromState(state: ProgressState): ProgressSnapshot {
     soundEnabled: state.soundEnabled,
     musicEnabled: state.musicEnabled,
     vibrations: state.vibrations,
+    volume: state.volume,
     tutorialSeen: state.tutorialSeen,
     daily: state.daily,
     dailyStreak: state.dailyStreak,
@@ -153,6 +156,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   soundEnabled: true,
   musicEnabled: true,
   vibrations: true,
+  volume: defaultProgress().volume,
   tutorialSeen: false,
   daily: null,
   dailyStreak: 0,
@@ -176,6 +180,10 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         soundEnabled: data.soundEnabled,
         musicEnabled: data.musicEnabled,
         vibrations: data.vibrations,
+        // Битое значение (NaN, строка, выход за диапазон) не должно ломать звук.
+        volume: Number.isFinite(data.volume)
+          ? Math.min(1, Math.max(0, Number(data.volume)))
+          : defaultProgress().volume,
         tutorialSeen: data.tutorialSeen ?? false,
         daily: data.daily ?? null,
         dailyStreak: data.dailyStreak ?? 0,
@@ -297,6 +305,12 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
 
   setSetting: (key, value) => {
     set({ [key]: value } as Pick<ProgressState, typeof key>);
+    scheduleSave(get());
+  },
+
+  setVolume: (value) => {
+    const safe = Math.min(1, Math.max(0, Math.round(value * 100) / 100));
+    set({ volume: safe });
     scheduleSave(get());
   },
 

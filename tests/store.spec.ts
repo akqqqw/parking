@@ -161,3 +161,19 @@ describe('задача дня', () => {
     expect(result.dailyBonus).toBe(40);
   });
 });
+
+describe('сохранение настроек', () => {
+  it('громкость попадает в снимок прогресса и восстанавливается', () => {
+    useProgressStore.getState().hydrate();
+    useProgressStore.getState().setVolume(0.35);
+    const snapshot = useProgressStore.getState().snapshot();
+    expect(snapshot.volume).toBe(0.35);
+
+    useProgressStore.getState().hydrate({ ...snapshot, volume: 0.35 });
+    expect(useProgressStore.getState().volume).toBe(0.35);
+
+    // Битое значение из старого сохранения не ломает игру.
+    useProgressStore.getState().hydrate({ ...snapshot, volume: Number.NaN });
+    expect(useProgressStore.getState().volume).toBe(0.7);
+  });
+});

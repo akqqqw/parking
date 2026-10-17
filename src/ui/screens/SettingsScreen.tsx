@@ -6,6 +6,8 @@ import { CAR_COLOR_KEYS, CAR_COLOR_SKINS, PARKING_SKINS, toCss } from '@/game/th
 import { useProgressStore } from '@/state/progressStore';
 import { getLevelCount } from '@/game/levels/catalog';
 import { useUiStore } from '@/state/uiStore';
+import { audio } from '@/services/audio';
+import { haptics } from '@/services/haptics';
 
 interface ToggleProps {
   label: string;
@@ -40,12 +42,14 @@ export function SettingsScreen(): JSX.Element {
     soundEnabled,
     musicEnabled,
     vibrations,
+    volume,
     parkingSkin,
     carSkin,
     ownedSkins,
     totalMoves,
     levelsCompleted,
     setSetting,
+    setVolume,
     setSkin,
     resetProgress,
   } = useProgressStore();
@@ -85,6 +89,26 @@ export function SettingsScreen(): JSX.Element {
             value={vibrations}
             onChange={(value) => setSetting('vibrations', value)}
           />
+          <label className="volume">
+            <span className="volume__head">
+              <span className="volume__label">Громкость</span>
+              <span className="volume__value">{Math.round(volume * 100)}%</span>
+            </span>
+            <input
+              className="volume__range"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(volume * 100)}
+              aria-label="Громкость звука"
+              onChange={(event) => setVolume(Number(event.target.value) / 100)}
+              onPointerUp={() => {
+                audio.pick();
+                haptics.play('tap');
+              }}
+            />
+          </label>
         </section>
 
         <section className="settings__group">

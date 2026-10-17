@@ -205,4 +205,20 @@ describe('интерфейс игры', () => {
     fireEvent.click(toggles[0]);
     expect(useProgressStore.getState().soundEnabled).toBe(!before);
   });
+
+  it('громкость регулируется ползунком и ограничена 0…100 %', () => {
+    useUiStore.setState({ screen: 'settings' });
+    render(<App />);
+    const slider = screen.getByLabelText('Громкость звука') as HTMLInputElement;
+    expect(slider.value).toBe('70');
+
+    fireEvent.change(slider, { target: { value: '25' } });
+    expect(useProgressStore.getState().volume).toBe(0.25);
+    expect(screen.getByText('25%')).toBeTruthy();
+
+    act(() => useProgressStore.getState().setVolume(2));
+    expect(useProgressStore.getState().volume).toBe(1);
+    act(() => useProgressStore.getState().setVolume(-1));
+    expect(useProgressStore.getState().volume).toBe(0);
+  });
 });

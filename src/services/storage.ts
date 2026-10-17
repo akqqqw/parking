@@ -34,6 +34,8 @@ export interface ProgressSnapshot {
   soundEnabled: boolean;
   musicEnabled: boolean;
   vibrations: boolean;
+  /** Общая громкость звука, 0…1. */
+  volume: number;
   /** Показан ли новичку короткий урок на первом уровне. */
   tutorialSeen: boolean;
   /** Последняя засчитанная задача дня. */
@@ -66,6 +68,7 @@ export function defaultProgress(): ProgressSnapshot {
     soundEnabled: true,
     musicEnabled: true,
     vibrations: true,
+    volume: 0.7,
     tutorialSeen: false,
     daily: null,
     dailyStreak: 0,
@@ -99,6 +102,7 @@ function mergeProgress(raw: unknown): ProgressSnapshot {
     coins: Number.isFinite(data.coins) ? Math.max(0, Math.round(data.coins as number)) : base.coins,
     hints: Number.isFinite(data.hints) ? Math.max(0, Math.round(data.hints as number)) : base.hints,
     undos: Number.isFinite(data.undos) ? Math.max(0, Math.round(data.undos as number)) : base.undos,
+    volume: Number.isFinite(data.volume) ? Math.min(1, Math.max(0, Number(data.volume))) : base.volume,
     daily: mergeDaily(data.daily),
     dailyStreak: Number.isFinite(data.dailyStreak)
       ? Math.max(0, Math.round(data.dailyStreak as number))
